@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta
+      name="description"
+      content="Conforme Obras - PWA para gestão de obras, vistorias, orçamentos e relatórios."
+    />
+    <title>Conforme Obras</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+    <link rel="stylesheet" href="css/global.css" />
+    <link rel="stylesheet" href="css/wizard.css" />
+  </head>
+  <body>
+    <div id="loginScreen" class="login-screen">
+      <div class="login-card">
+        <div class="login-header" style="display: grid; gap: 14px; justify-items: center; text-align: center;">
+          <div class="brand-mark" aria-label="Logo da empresa">
+            <img src="assets/logo/logo.png" alt="Logo Conforme Obras" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <span class="brand-fallback">CO</span>
+          </div>
+          <p class="eyebrow">Conforme Obras</p>
+          <h2>Entrar no sistema</h2>
+        </div>
+
+        <form id="loginForm" class="login-form">
+          <label>
+            Empresa
+            <select id="companySelect" required>
+              <option value="">Selecione a empresa</option>
+              <option value="Construtora Alpha">Construtora Alpha</option>
+              <option value="Obras Premium">Obras Premium</option>
+              <option value="Urbaniza Norte">Urbaniza Norte</option>
+            </select>
+          </label>
+
+          <label>
+            Nome
+            <input id="userName" type="text" placeholder="Digite seu nome" required />
+          </label>
+
+          <label>
+            Senha
+            <input id="userPassword" type="password" placeholder="Digite sua senha" required />
+          </label>
+
+          <button type="submit" class="primary-btn login-button">Entrar</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="appShell" class="app-shell hidden">
+      <div class="status-bar">
+        <div class="status-pill success">Online</div>
+        <div class="status-pill">Obras ativas: 24</div>
+        <div class="status-pill">Vistorias: 12</div>
+        <div class="status-pill">Checklist: 96%</div>
+      </div>
+
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark small">
+            <img src="assets/logo/logo.png" alt="Logo Conforme Obras" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <span class="brand-fallback">CO</span>
+          </div>
+          <div id="pageTitle">
+            <p class="eyebrow">Conforme Obras</p>
+            <h1>Dashboard</h1>
+          </div>
+        </div>
+
+        <button id="profileToggle" class="user-avatar" aria-label="Perfil do usuário" title="Clique para abrir perfil">
+          <span id="userAvatarText">U</span>
+        </button>
+      </header>
+
+      <main class="layout">
+        <section class="content">
+          <div id="dashboardView" class="view active">
+            <div class="cards-grid">
+              <article class="stat-card accent">
+                <span>Empreendimentos</span>
+                <strong>24</strong>
+                <small>Ativos neste mês</small>
+              </article>
+              <article class="stat-card">
+                <span>Vistorias</span>
+                <strong>12</strong>
+                <small>Em andamento</small>
+              </article>
+              <article class="stat-card">
+                <span>Orçamentos</span>
+                <strong>8</strong>
+                <small>Na análise</small>
+              </article>
+              <article class="stat-card">
+                <span>Checklist</span>
+                <strong>96%</strong>
+                <small>Conformidade geral</small>
+              </article>
+            </div>
+
+            <div class="module-grid">
+              <div class="module-panel">
+                <div class="panel-header">
+                  <h2>Resumo da semana</h2>
+                  <button class="primary-btn" data-open-wizard>Nova etapa</button>
+                </div>
+                <ul class="list">
+                  <li><span>Empresa A</span><em>Emissão de relatório</em></li>
+                  <li><span>Obra Vila Nova</span><em>Visita técnica agendada</em></li>
+                  <li><span>Orçamento 104</span><em>Aguardando aprovação</em></li>
+                </ul>
+              </div>
+
+              <div class="module-panel">
+                <div class="panel-header">
+                  <h2>Ações rápidas</h2>
+                </div>
+                <div class="action-row">
+                  <button class="secondary-btn">Novo cliente</button>
+                  <button class="secondary-btn">Registrar vistoria</button>
+                </div>
+                <div class="action-row">
+                  <button class="secondary-btn">Gerar relatório</button>
+                  <button class="secondary-btn">Abrir calendário</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="cadastroView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Cadastros</h2>
+                <button class="primary-btn" data-open-wizard>Novo cadastro</button>
+              </div>
+
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Empresas</h3>
+                  <ul class="metric-list">
+                    <li><span>Construtora Alpha</span><strong>12</strong></li>
+                    <li><span>Obras Premium</span><strong>6</strong></li>
+                    <li><span>Urbaniza Norte</span><strong>4</strong></li>
+                  </ul>
+                </div>
+
+                <div class="module-panel">
+                  <h3>Empreendimentos</h3>
+                  <ul class="metric-list">
+                    <li><span>Residencial Sol</span><strong>Ativo</strong></li>
+                    <li><span>Centro Comercial</span><strong>Em obra</strong></li>
+                    <li><span>Parque Vista</span><strong>Planejamento</strong></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="vistoriasView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Vistorias</h2>
+                <button class="primary-btn" data-vistoria-quick>Nova vistoria</button>
+                <button class="whatsapp-btn" id="compartilharVistoriaWhatsapp" title="Compartilhar por WhatsApp">
+                  <span class="whatsapp-icon">💬</span> WhatsApp
+                </button>
+              </div>
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Checklist obrigatório</h3>
+                  <ul id="vistoriasChecklist" class="task-list"></ul>
+                </div>
+
+                <div class="module-panel">
+                  <h3>Registrar inspeção</h3>
+                  <form id="vistoriaForm" class="inspection-form">
+                    <label>
+                      Obra
+                      <input type="text" name="obra" placeholder="Ex: Torre Central" required />
+                    </label>
+                    <label>
+                      Área / setor
+                      <input type="text" name="area" placeholder="Ex: Bloco A - 3º andar" required />
+                    </label>
+                    <label>
+                      Responsável
+                      <input type="text" name="responsavel" placeholder="Nome do responsável" required />
+                    </label>
+                    <label>
+                      Status geral
+                      <select name="status" required>
+                        <option value="ok">Conforme</option>
+                        <option value="alerta">Alerta</option>
+                        <option value="pendente">Pendente</option>
+                      </select>
+                    </label>
+                    <label>
+                      Observações da vistoria
+                      <textarea name="observacoes" rows="4" placeholder="Descreva o que foi observado..." required></textarea>
+                    </label>
+                    <label>
+                      Pendências
+                      <input type="text" name="pendencias" placeholder="Ex: Ajuste de fissura na laje" />
+                    </label>
+                    <label>
+                      Fotos da inspeção
+                      <input id="inspectionPhotos" type="file" name="fotos" accept="image/*" multiple />
+                    </label>
+                    <div id="photoPreview" class="photo-preview" aria-live="polite"></div>
+                    <button type="submit" class="primary-btn">Salvar vistoria</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="relatoriosView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Relatórios</h2>
+                <button class="primary-btn" id="gerarRelatorio">Gerar relatório</button>
+                <button class="secondary-btn" id="exportarPDF">Exportar PDF</button>
+                <button class="whatsapp-btn" id="compartilharRelatorioWhatsapp" title="Compartilhar por WhatsApp">
+                  <span class="whatsapp-icon">💬</span> WhatsApp
+                </button>
+              </div>
+              <div id="relatorioConteudo" class="relatorio-conteudo"></div>
+            </div>
+          </div>
+
+          <div id="projetosView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Projetos e Documentação</h2>
+                <button class="primary-btn" data-projeto-quick>Novo projeto</button>
+                <button class="whatsapp-btn" id="compartilharProjetoWhatsapp" title="Compartilhar por WhatsApp">
+                  <span class="whatsapp-icon">💬</span> WhatsApp
+                </button>
+              </div>
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Upload e Análise de Projetos</h3>
+                  <form id="projetoForm">
+                    <label>
+                      Nome do projeto
+                      <input type="text" name="nome" placeholder="Ex: Projeto Torre Central" required />
+                    </label>
+                    <label>
+                      Obra
+                      <input type="text" name="obra" placeholder="Ex: Torre Central" required />
+                    </label>
+                    <label>
+                      Responsável
+                      <input type="text" name="responsavel" placeholder="Ex: Arq. Silva" />
+                    </label>
+                    <label>
+                      Arquivo PDF
+                      <input type="file" id="projetoFile" name="arquivo" accept="application/pdf" />
+                    </label>
+                    <label>
+                      Status
+                      <select name="status">
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                      </select>
+                    </label>
+                    <div id="projetoAnalise"></div>
+                    <button type="submit" class="primary-btn">Salvar projeto</button>
+                  </form>
+                </div>
+                <div class="module-panel">
+                  <h3>Projetos Cadastrados</h3>
+                  <ul id="projetosList" class="inspection-list"></ul>
+                </div>
+              </div>
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Resumo</h3>
+                  <ul id="projetosSummary" class="metric-list"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="orcamentosView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Orçamentos</h2>
+                <button class="primary-btn">Novo orçamento</button>
+              </div>
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Valores em revisão</h3>
+                  <ul class="metric-list">
+                    <li><span>Obra A</span><strong>R$ 18k</strong></li>
+                    <li><span>Obra B</span><strong>R$ 24k</strong></li>
+                    <li><span>Reforma C</span><strong>R$ 9k</strong></li>
+                  </ul>
+                </div>
+                <div class="module-panel">
+                  <h3>Status</h3>
+                  <ul class="task-list">
+                    <li>Aguardando aprovação</li>
+                    <li>Em negociação</li>
+                    <li>Concluído</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="reformasView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Reformas</h2>
+                <button class="primary-btn" data-reforma-quick>Nova reforma</button>
+              </div>
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Cadastro da reforma</h3>
+                  <form id="reformaForm" class="inspection-form">
+                    <label>
+                      Obra
+                      <input type="text" name="obra" placeholder="Ex: Residencial Sol" required />
+                    </label>
+                    <label>
+                      Responsável
+                      <input type="text" name="responsavel" placeholder="Ex: Coord. Obra" required />
+                    </label>
+                    <label>
+                      Prazo previsto
+                      <input type="date" name="prazo" required />
+                    </label>
+
+                    <div class="room-selection">
+                      <label class="room-option">
+                        <input type="checkbox" data-room="suite" />
+                        <span>Suíte</span>
+                        <input type="number" min="1" value="1" data-room-qty="suite" />
+                      </label>
+                      <label class="room-option">
+                        <input type="checkbox" data-room="banheiro" />
+                        <span>Banheiro</span>
+                        <input type="number" min="1" value="1" data-room-qty="banheiro" />
+                      </label>
+                      <label class="room-option">
+                        <input type="checkbox" data-room="cozinha" />
+                        <span>Cozinha</span>
+                        <input type="number" min="1" value="1" data-room-qty="cozinha" />
+                      </label>
+                      <label class="room-option">
+                        <input type="checkbox" data-room="quarto" />
+                        <span>Quarto</span>
+                        <input type="number" min="1" value="1" data-room-qty="quarto" />
+                      </label>
+                      <label class="room-option">
+                        <input type="checkbox" data-room="sala" />
+                        <span>Sala</span>
+                        <input type="number" min="1" value="1" data-room-qty="sala" />
+                      </label>
+                      <label class="room-option">
+                        <input type="checkbox" data-room="areaExterna" />
+                        <span>Área externa</span>
+                        <input type="number" min="1" value="1" data-room-qty="areaExterna" />
+                      </label>
+                    </div>
+
+                    <button type="submit" class="primary-btn">Salvar reforma</button>
+                  </form>
+                </div>
+
+                <div class="module-panel">
+                  <h3>Checklist gerado</h3>
+                  <ul id="reformaChecklistPreview" class="task-list"></ul>
+                </div>
+
+                <div class="module-panel">
+                  <h3>Vistoria da reforma</h3>
+                  <form id="reformaVistoriaForm" class="inspection-form">
+                    <div id="reformaVistoriaList" class="inspection-list"></div>
+                    <button type="submit" class="primary-btn">Salvar vistoria</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="pessoasView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Pessoas</h2>
+                <button class="primary-btn">Novo contato</button>
+              </div>
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Responsáveis</h3>
+                  <ul class="metric-list">
+                    <li><span>Maria Souza</span><strong>Engenharia</strong></li>
+                    <li><span>Pedro Lima</span><strong>Obra</strong></li>
+                    <li><span>João Pereira</span><strong>Financeiro</strong></li>
+                  </ul>
+                </div>
+                <div class="module-panel">
+                  <h3>Fornecedores</h3>
+                  <ul class="task-list">
+                    <li>Material de construção</li>
+                    <li>Elétrica e acabamento</li>
+                    <li>Revestimentos</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="calendarioView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Calendário</h2>
+                <button class="primary-btn">Agendar</button>
+              </div>
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Próximos eventos</h3>
+                  <ul class="task-list">
+                    <li>Reunião de obra - 18/08</li>
+                    <li>Vistoria final - 20/08</li>
+                    <li>Entrega de cronograma - 22/08</li>
+                  </ul>
+                </div>
+                <div class="module-panel">
+                  <h3>Agenda</h3>
+                  <ul class="metric-list">
+                    <li><span>Hoje</span><strong>3</strong></li>
+                    <li><span>Esta semana</span><strong>12</strong></li>
+                    <li><span>Próximo mês</span><strong>29</strong></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="usuariosView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Usuários</h2>
+                <button class="primary-btn" data-trigger-user-form>Novo usuário</button>
+              </div>
+
+              <div class="module-grid user-layout">
+                <div class="module-panel">
+                  <h3>Cadastro de usuário</h3>
+                  <form id="userForm" class="user-form">
+                    <label>
+                      Nome completo
+                      <input type="text" name="nome" placeholder="Nome do usuário" required />
+                    </label>
+                    <label>
+                      Empresa
+                      <select name="empresa" required>
+                        <option value="">Selecione</option>
+                        <option value="Construtora Alpha">Construtora Alpha</option>
+                        <option value="Obras Premium">Obras Premium</option>
+                        <option value="Urbaniza Norte">Urbaniza Norte</option>
+                      </select>
+                    </label>
+                    <label>
+                      E-mail
+                      <input type="email" name="email" placeholder="usuario@empresa.com" required />
+                    </label>
+                    <label>
+                      Perfil
+                      <select name="perfil" required>
+                        <option value="admin">Administrador</option>
+                        <option value="engenheiro">Engenheiro</option>
+                        <option value="financeiro">Financeiro</option>
+                        <option value="operacional">Operacional</option>
+                      </select>
+                    </label>
+                    <button type="submit" class="primary-btn">Salvar usuário</button>
+                  </form>
+                </div>
+
+                <div class="module-panel">
+                  <h3>Usuários cadastrados</h3>
+                  <ul id="userList" class="task-list user-list"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="pendenciasView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Pendências</h2>
+                <button class="primary-btn" data-pendencia-quick>Nova pendência</button>
+                <button class="whatsapp-btn" id="compartilharPendenciasWhatsapp" title="Compartilhar por WhatsApp">
+                  <span class="whatsapp-icon">💬</span> WhatsApp
+                </button>
+              </div>
+
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Lista de correções</h3>
+                  <div class="pendencia-filters">
+                    <label>
+                      Obra
+                      <select id="pendenciaFilterObra">
+                        <option value="all">Todas</option>
+                      </select>
+                    </label>
+                    <label>
+                      Prioridade
+                      <select id="pendenciaFilterPrioridade">
+                        <option value="all">Todas</option>
+                        <option value="alta">Alta</option>
+                        <option value="media">Média</option>
+                        <option value="baixa">Baixa</option>
+                      </select>
+                    </label>
+                  </div>
+                  <ul id="pendenciasList" class="task-list"></ul>
+                </div>
+
+                <div class="module-panel">
+                  <h3>Cadastrar pendência</h3>
+                  <form id="pendenciaForm" class="inspection-form">
+                    <label>
+                      Descrição
+                      <input type="text" name="descricao" placeholder="Ex: Ajuste de fissura na laje" required />
+                    </label>
+                    <label>
+                      Obra
+                      <input type="text" name="obra" placeholder="Ex: Torre Central" required />
+                    </label>
+                    <label>
+                      Responsável
+                      <input type="text" name="responsavel" placeholder="Ex: Eng. Silva" required />
+                    </label>
+                    <label>
+                      Prioridade
+                      <select name="prioridade" required>
+                        <option value="alta">Alta</option>
+                        <option value="media" selected>Média</option>
+                        <option value="baixa">Baixa</option>
+                      </select>
+                    </label>
+                    <label>
+                      Prazo
+                      <input type="date" name="prazo" required />
+                    </label>
+                    <label>
+                      Status
+                      <select name="status" required>
+                        <option value="aberta" selected>Aberta</option>
+                        <option value="em-andamento">Em andamento</option>
+                        <option value="concluida">Concluída</option>
+                      </select>
+                    </label>
+                    <label>
+                      Fotos da pendência
+                      <input type="file" name="fotos" accept="image/*" multiple />
+                    </label>
+                    <button type="submit" class="primary-btn">Salvar pendência</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="checklistView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Configurações</h2>
+                <button class="primary-btn">Adicionar item</button>
+              </div>
+              <div class="module-grid">
+                <div class="module-panel">
+                  <h3>Etapas</h3>
+                  <ul class="task-list">
+                    <li>Verificação de fundações</li>
+                    <li>Inspeção de estrutura</li>
+                    <li>Conferência de acabamento</li>
+                  </ul>
+                </div>
+                <div class="module-panel">
+                  <h3>Conformidade</h3>
+                  <ul id="pendenciasSummary" class="metric-list"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SEARCH VIEW -->
+          <div id="searchView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Pesquisa</h2>
+              </div>
+              <div class="search-panel">
+                <input type="text" id="searchInput" class="text-input" placeholder="Buscar reformas, vistorias, pendências...">
+                <div id="searchResults" class="search-results"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SETTINGS VIEW -->
+          <div id="settingsView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Configurações</h2>
+              </div>
+              <div class="settings-panel">
+                <div class="settings-group">
+                  <h3>Aparência</h3>
+                  <label class="settings-item">
+                    <input type="checkbox" id="darkModeToggle">
+                    <span>Modo escuro</span>
+                  </label>
+                </div>
+                <div class="settings-group">
+                  <h3>Dados</h3>
+                  <button class="secondary-btn" id="backupBtn">Fazer backup</button>
+                  <button class="secondary-btn" id="restoreBtn">Restaurar dados</button>
+                </div>
+                <div class="settings-group">
+                  <h3>Aplicativo</h3>
+                  <p>Versão: 1.0.0</p>
+                  <button class="secondary-btn" id="aboutBtn">Sobre o app</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- NAVBAR INFERIOR -->
+        <nav class="bottom-navbar" aria-label="Menu principal">
+          <button class="nav-bottom-item active" data-view="dashboard" title="Início">
+            <span class="icon">⌂</span>
+            <span>Início</span>
+          </button>
+          <button class="nav-bottom-item" data-view="search" title="Pesquisa">
+            <span class="icon">⊙</span>
+            <span>Pesquisa</span>
+          </button>
+          <button class="nav-bottom-item" data-view="modules" title="Módulos">
+            <span class="icon">⊞</span>
+            <span>Módulos</span>
+          </button>
+          <button class="nav-bottom-item" data-view="settings" title="Configurações">
+            <span class="icon">⚙</span>
+            <span>Config</span>
+          </button>
+        </nav>
+      </main>
+
+      <!-- MODAL DE PERFIL -->
+      <div id="profileModal" class="modal-overlay hidden" aria-hidden="true">
+        <div class="profile-modal" role="dialog" aria-modal="true">
+          <div class="profile-header">
+            <button class="close-profile" aria-label="Fechar perfil">×</button>
+          </div>
+          <div class="profile-content">
+            <div class="profile-avatar-large">
+              <span id="profileAvatarLarge">U</span>
+            </div>
+            <div class="profile-info">
+              <h2 id="profileName">Usuário</h2>
+              <p id="profileCompany">Empresa</p>
+              <p id="profileRole">Operacional</p>
+            </div>
+            <div class="profile-actions">
+              <button class="secondary-btn" id="editProfileBtn">Editar Perfil</button>
+              <button class="secondary-btn" id="logoutBtn">Sair</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL DE MÓDULOS -->
+      <div id="modulesModal" class="modal-overlay hidden" aria-hidden="true">
+        <div class="modules-modal" role="dialog" aria-modal="true">
+          <div class="modal-header">
+            <h2>Módulos Disponíveis</h2>
+            <button class="close-modal" aria-label="Fechar">×</button>
+          </div>
+          <div class="modules-grid">
+            <button class="module-tile" data-view="reformas" title="Registro de reformas por cômodo">
+              <span class="icon">◆</span>
+              <span>Reformas</span>
+            </button>
+            <button class="module-tile" data-view="vistorias" title="Inspeção e checklist">
+              <span class="icon">✓</span>
+              <span>Vistorias</span>
+            </button>
+            <button class="module-tile" data-view="projetos" title="Upload e análise de PDFs">
+              <span class="icon">≡</span>
+              <span>Projetos</span>
+            </button>
+            <button class="module-tile" data-view="pendencias" title="Rastreamento de problemas">
+              <span class="icon">⚠</span>
+              <span>Pendências</span>
+            </button>
+            <button class="module-tile" data-view="relatorios" title="Relatórios consolidados">
+              <span class="icon">📊</span>
+              <span>Relatórios</span>
+            </button>
+            <button class="module-tile" data-view="usuarios" title="Gestão de usuários">
+              <span class="icon">👤</span>
+              <span>Usuários</span>
+            </button>
+            <button class="module-tile" data-view="orcamentos" title="Estimativas e orçamentos">
+              <span class="icon">💰</span>
+              <span>Orçamentos</span>
+            </button>
+            <button class="module-tile" data-view="cadastro" title="Cadastros gerais">
+              <span class="icon">📋</span>
+              <span>Cadastro</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL DE COMPARTILHAMENTO WHATSAPP -->
+      <div id="whatsappShareModal" class="modal-overlay hidden" aria-hidden="true">
+        <div class="whatsapp-share-modal" role="dialog" aria-modal="true">
+          <div class="whatsapp-modal-header">
+            <h2>📱 Compartilhar por WhatsApp</h2>
+            <button class="close-whatsapp" aria-label="Fechar">×</button>
+          </div>
+          <div class="whatsapp-content">
+            <div class="whatsapp-recipient">
+              <label>Número de telefone (com código de país)</label>
+              <input type="tel" id="whatsappPhone" placeholder="Ex: 55 11 99999-9999" />
+              <small style="color: var(--muted);">Deixe em branco para usar Link Direto do WhatsApp Web</small>
+            </div>
+            <div class="whatsapp-message">
+              <label>Mensagem</label>
+              <textarea id="whatsappMessage" placeholder="Edite a mensagem se desejar..."></textarea>
+            </div>
+            <div class="whatsapp-actions">
+              <button class="whatsapp-send" id="whatsappSendBtn">
+                <span class="whatsapp-icon">📤</span> Enviar
+              </button>
+              <button class="whatsapp-cancel" id="whatsappCancelBtn">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wizardOverlay" class="wizard-overlay hidden" aria-hidden="true">
+      <div class="wizard-modal" role="dialog" aria-modal="true" aria-labelledby="wizardTitle">
+        <div class="wizard-header">
+          <div>
+            <p class="eyebrow">Fluxo guiado</p>
+            <h2 id="wizardTitle">Novo cadastro</h2>
+          </div>
+          <button class="close-btn" id="closeWizard" aria-label="Fechar wizard">×</button>
+        </div>
+
+        <div class="wizard-steps" aria-label="Etapas do wizard">
+          <div class="step active">1. Empresa</div>
+          <div class="step">2. Obra</div>
+          <div class="step">3. Vistoria</div>
+          <div class="step">4. Conclusão</div>
+        </div>
+
+        <form id="wizardForm" class="wizard-form">
+          <div class="wizard-step-panel active" data-step="1">
+            <label>
+              Nome da empresa
+              <input type="text" name="empresa" placeholder="Ex: Construtora Alpha" />
+            </label>
+            <label>
+              Responsável
+              <input type="text" name="responsavel" placeholder="Nome do responsável" />
+            </label>
+          </div>
+
+          <div class="wizard-step-panel" data-step="2">
+            <label>
+              Nome da obra
+              <input type="text" name="obra" placeholder="Ex: Torre Central" />
+            </label>
+            <label>
+              Status atual
+              <select name="status">
+                <option value="planejamento">Planejamento</option>
+                <option value="execucao">Execução</option>
+                <option value="concluido">Concluído</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="wizard-step-panel" data-step="3">
+            <label>
+              Tipo de vistoria
+              <select name="tipoVistoria">
+                <option value="inicial">Inicial</option>
+                <option value="intermediaria">Intermediária</option>
+                <option value="final">Final</option>
+              </select>
+            </label>
+            <label>
+              Observações
+              <textarea name="observacoes" rows="4" placeholder="Descreva pendências ou observações..."></textarea>
+            </label>
+          </div>
+
+          <div class="wizard-step-panel" data-step="4">
+            <h3>Resumo do cadastro</h3>
+            <div id="wizardSummary" class="summary-box">
+              Preencha as etapas anteriores para revisar os dados.
+            </div>
+          </div>
+        </form>
+
+        <div class="wizard-footer">
+          <button type="button" class="secondary-btn" id="prevStep">Anterior</button>
+          <button type="button" class="primary-btn" id="nextStep">Próximo</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="projetoModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Detalhes do Projeto</h3>
+          <button type="button" class="close-modal">×</button>
+        </div>
+        <div class="modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn close-modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/whatsapp-share.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

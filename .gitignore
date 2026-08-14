@@ -1,0 +1,28 @@
+node_modules/
+.firebase/
+.DS_Store
+npm-debug.log*
+
+# Credentials & Config
+.env
+.env.local
+.env.*.local
+firebase-credentials.json
+config.local.js
+firebase-config.local.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Temp
+tmp/
+temp/
+*.tmp

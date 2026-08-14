@@ -1,0 +1,13 @@
+{
+  "name": "conforme-obras",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PWA para gestão de obras e vistorias",
+  "scripts": {
+    "start": "npx serve public -l 4173",
+    "dev": "npx serve public -l 4173"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}

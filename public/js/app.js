@@ -1,0 +1,359 @@
+import { initCadastroModule } from './modules/cadastro.js';
+import { initVistoriasModule } from './modules/vistorias.js';
+import { initRelatoriosModule } from './modules/relatorios.js';
+import { initOrcamentosModule } from './modules/orcamentos.js';
+import { initReformasModule } from './modules/reformas.js';
+import { initProjetosModule } from './modules/projetos.js';
+import { initPessoasModule } from './modules/pessoas.js';
+import { initDashboardsModule } from './modules/dashboards.js';
+import { initCalendarioModule } from './modules/calendario.js';
+import { initChecklistModule } from './modules/checklist.js';
+import { initUsuariosModule } from './modules/usuarios.js';
+import { initPendenciasModule } from './modules/pendencias.js';
+import { saveDocument, loadCollection, initFirebase } from './firebase-init.js';
+
+const navItems = document.querySelectorAll('.nav-item');
+const views = document.querySelectorAll('.view');
+const wizardOverlay = document.getElementById('wizardOverlay');
+const closeWizardButton = document.getElementById('closeWizard');
+const nextStepButton = document.getElementById('nextStep');
+const prevStepButton = document.getElementById('prevStep');
+const wizardForm = document.getElementById('wizardForm');
+const stepPanels = Array.from(document.querySelectorAll('.wizard-step-panel'));
+const stepIndicators = Array.from(document.querySelectorAll('.step'));
+const summaryBox = document.getElementById('wizardSummary');
+const installBtn = document.getElementById('installBtn');
+const loginForm = document.getElementById('loginForm');
+const loginScreen = document.getElementById('loginScreen');
+const appShell = document.getElementById('appShell');
+const headerUserName = document.getElementById('headerUserName');
+const headerCompanyName = document.getElementById('headerCompanyName');
+const userAvatar = document.getElementById('userAvatar');
+const profileToggle = document.getElementById('profileToggle');
+const profileModal = document.getElementById('profileModal');
+const modulesModal = document.getElementById('modulesModal');
+const bottomNavItems = document.querySelectorAll('.nav-bottom-item');
+const closeProfileBtn = profileModal?.querySelector('.close-profile');
+const closeModulesBtn = modulesModal?.querySelector('.close-modal');
+
+// Dados do usuário logado
+let currentUser = {
+  name: '',
+  company: '',
+  role: 'Operacional'
+};
+
+let currentStep = 0;
+let deferredPrompt = null;
+
+function activateView(viewId) {
+  views.forEach((view) => {
+    const isActive = view.id === `${viewId}View`;
+    view.classList.toggle('active', isActive);
+  });
+
+  // Atualizar navbar inferior
+  bottomNavItems.forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.view === viewId);
+  });
+
+  // Atualizar sidebar se existir
+  if (navItems.length > 0) {
+    navItems.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.view === viewId);
+    });
+  }
+
+  // Atualizar título da página
+  const pageTitle = document.getElementById('pageTitle');
+  if (pageTitle) {
+    const viewName = {
+      dashboard: 'Dashboard',
+      reformas: 'Reformas',
+      vistorias: 'Vistorias',
+      projetos: 'Projetos',
+      pendencias: 'Pendências',
+      relatorios: 'Relatórios',
+      usuarios: 'Usuários',
+      orcamentos: 'Orçamentos',
+      cadastro: 'Cadastro',
+      search: 'Pesquisa',
+      modules: 'Módulos',
+      settings: 'Configurações'
+    };
+    pageTitle.querySelector('h1').textContent = viewName[viewId] || 'Painel';
+  }
+
+  // Fechar modais ao mudar de view
+  if (profileModal) profileModal.classList.add('hidden');
+  if (modulesModal) modulesModal.classList.add('hidden');
+}
+
+function handleLogin(event) {
+  event.preventDefault();
+
+  const companyName = document.getElementById('companySelect').value;
+  const userName = document.getElementById('userName').value.trim();
+  const password = document.getElementById('userPassword').value.trim();
+
+  if (!companyName || !userName || !password) {
+    alert('Selecione a empresa, informe o nome e a senha.');
+    return;
+  }
+
+  loginScreen.classList.add('hidden');
+  appShell.classList.remove('hidden');
+
+  const initials = userName
+    .split(' ')
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join('');
+
+  // Salvar dados do usuário
+  currentUser.name = userName;
+  currentUser.company = companyName;
+
+  userAvatar.textContent = initials || 'U';
+  
+  // Atualizar perfil modal
+  if (document.getElementById('profileName')) {
+    document.getElementById('profileName').textContent = userName;
+    document.getElementById('profileCompany').textContent = companyName;
+    document.getElementById('profileAvatarLarge').textContent = initials || 'U';
+  }
+}
+
+loginForm.addEventListener('submit', handleLogin);
+
+// NAVBAR INFERIOR
+bottomNavItems.forEach((button) => {
+  button.addEventListener('click', () => {
+    const viewId = button.dataset.view;
+    
+    if (viewId === 'modules') {
+      modulesModal.classList.remove('hidden');
+    } else if (viewId === 'settings') {
+      // Abre modal de configurações (pode ser perfil ou settings específicas)
+      profileModal.classList.remove('hidden');
+    } else {
+      activateView(viewId);
+    }
+  });
+});
+
+// PERFIL
+if (profileToggle) {
+  profileToggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    profileModal.classList.remove('hidden');
+  });
+}
+
+if (closeProfileBtn) {
+  closeProfileBtn.addEventListener('click', () => {
+    profileModal.classList.add('hidden');
+  });
+}
+
+// MODAL DE MÓDULOS
+if (closeModulesBtn) {
+  closeModulesBtn.addEventListener('click', () => {
+    modulesModal.classList.add('hidden');
+  });
+}
+
+// Clicar nos tiles de módulos
+const moduleTiles = modulesModal?.querySelectorAll('.module-tile') || [];
+moduleTiles.forEach((tile) => {
+  tile.addEventListener('click', () => {
+    const viewId = tile.dataset.view;
+    activateView(viewId);
+  });
+});
+
+// Fechar modais ao clicar no overlay
+if (profileModal) {
+  profileModal.addEventListener('click', (e) => {
+    if (e.target === profileModal) {
+      profileModal.classList.add('hidden');
+    }
+  });
+}
+
+if (modulesModal) {
+  modulesModal.addEventListener('click', (e) => {
+    if (e.target === modulesModal) {
+      modulesModal.classList.add('hidden');
+    }
+  });
+}
+
+// LOGOUT
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', () => {
+    loginScreen.classList.remove('hidden');
+    appShell.classList.add('hidden');
+    profileModal.classList.add('hidden');
+    activateView('dashboard');
+    loginForm.reset();
+  });
+}
+
+function updateWizardUI() {
+  stepPanels.forEach((panel, index) => {
+    panel.classList.toggle('active', index === currentStep);
+  });
+
+  stepIndicators.forEach((step, index) => {
+    step.classList.toggle('active', index === currentStep);
+  });
+
+  prevStepButton.disabled = currentStep === 0;
+  prevStepButton.style.opacity = currentStep === 0 ? '0.5' : '1';
+
+  const isLastStep = currentStep === stepPanels.length - 1;
+  nextStepButton.textContent = isLastStep ? 'Salvar' : 'Próximo';
+
+  if (isLastStep) {
+    const formData = new FormData(wizardForm);
+    const empresa = formData.get('empresa') || 'Não informado';
+    const obra = formData.get('obra') || 'Não informado';
+    const tipoVistoria = formData.get('tipoVistoria') || 'Não informado';
+    const status = formData.get('status') || 'Não informado';
+
+    summaryBox.innerHTML = `
+      <strong>Empresa:</strong> ${empresa}<br>
+      <strong>Obra:</strong> ${obra}<br>
+      <strong>Status:</strong> ${status}<br>
+      <strong>Vistoria:</strong> ${tipoVistoria}
+    `;
+  }
+}
+
+function openWizard() {
+  wizardOverlay.classList.remove('hidden');
+  wizardOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function closeWizard() {
+  wizardOverlay.classList.add('hidden');
+  wizardOverlay.setAttribute('aria-hidden', 'true');
+  currentStep = 0;
+  updateWizardUI();
+}
+
+document.querySelector('[data-open-wizard]').addEventListener('click', openWizard);
+closeWizardButton.addEventListener('click', closeWizard);
+
+wizardOverlay.addEventListener('click', (event) => {
+  if (event.target === wizardOverlay) {
+    closeWizard();
+  }
+});
+
+prevStepButton.addEventListener('click', () => {
+  if (currentStep > 0) {
+    currentStep -= 1;
+    updateWizardUI();
+  }
+});
+
+nextStepButton.addEventListener('click', () => {
+  if (currentStep < stepPanels.length - 1) {
+    currentStep += 1;
+    updateWizardUI();
+    return;
+  }
+
+  const formData = new FormData(wizardForm);
+  const payload = Object.fromEntries(formData.entries());
+
+  saveDocument('cadastros', payload)
+    .then(() => {
+      console.log('Dados do wizard salvos:', payload);
+      alert('Cadastro enviado com sucesso!');
+      closeWizard();
+    })
+    .catch((error) => {
+      console.error('Erro ao salvar cadastro:', error);
+      alert('Cadastro em modo local. Firebase ainda não foi configurado.');
+      closeWizard();
+    });
+});
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredPrompt = event;
+  installBtn.hidden = false;
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBtn.hidden = true;
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.error('Service worker failed:', error);
+    });
+  });
+}
+
+// Inicializar dados para compartilhamento
+window.loadedData = {
+  relatorios: [],
+  vistorias: [],
+  projetos: [],
+  pendencias: [],
+  reformas: [],
+  orcamentos: []
+};
+
+// Função para atualizar dados carregados
+function updateLoadedData() {
+  try {
+    window.loadedData.relatorios = JSON.parse(localStorage.getItem('relatorios') || '[]');
+    window.loadedData.vistorias = JSON.parse(localStorage.getItem('vistorias') || '[]');
+    window.loadedData.projetos = JSON.parse(localStorage.getItem('projetos') || '[]');
+    window.loadedData.pendencias = JSON.parse(localStorage.getItem('pendencias') || '[]');
+    window.loadedData.reformas = JSON.parse(localStorage.getItem('reformas') || '[]');
+    window.loadedData.orcamentos = JSON.parse(localStorage.getItem('orcamentos') || '[]');
+  } catch (error) {
+    console.error('Erro ao carregar dados:', error);
+  }
+}
+
+initFirebase();
+loadCollection('cadastros').then((items) => {
+  console.log('Cadastros salvos:', items);
+});
+
+initCadastroModule();
+initVistoriasModule();
+initRelatoriosModule();
+initOrcamentosModule();
+initReformasModule();
+initProjetosModule();
+initPessoasModule();
+initDashboardsModule();
+initCalendarioModule();
+initChecklistModule();
+initUsuariosModule();
+initPendenciasModule();
+
+// Carregar dados para compartilhamento
+updateLoadedData();
+
+// Atualizar dados quando houver alterações
+window.addEventListener('storage', () => {
+  updateLoadedData();
+});
+
+activateView('dashboard');
+updateWizardUI();
