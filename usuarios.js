@@ -127,6 +127,25 @@ async function handleSaveUser(e) {
 
     } catch (error) {
         console.error('Erro ao salvar usuário:', error);
-        alert('Erro ao salvar usuário: ' + error.message);
+
+        // Traduz o código de erro do Firebase para uma mensagem amigável
+        let userMessage = 'Ocorreu um erro inesperado. Tente novamente.';
+        switch (error.code) {
+            case 'permission-denied':
+                userMessage = 'Você não tem permissão para criar ou editar usuários. Por favor, contate um administrador.';
+                break;
+            case 'invalid-argument':
+                userMessage = 'Os dados enviados são inválidos. Verifique se todos os campos foram preenchidos corretamente.';
+                break;
+            case 'already-exists':
+                userMessage = 'Um usuário com este e-mail já existe.';
+                break;
+            case 'unavailable':
+                userMessage = 'O serviço está temporariamente indisponível. Verifique sua conexão com a internet e tente novamente.';
+                break;
+        }
+
+        // Exibe a mensagem clara para o usuário
+        alert(`Erro ao salvar usuário: ${userMessage}`);
     }
 }

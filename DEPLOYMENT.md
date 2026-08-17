@@ -70,7 +70,8 @@ const firebaseConfig = {
 ### 2.1 Criar arquivo de configuração local
 
 1. Na pasta do app, crie um arquivo chamado `firebase-config.local.js`
-2. Cole o seguinte conteúdo:
+2. **IMPORTANTE**: Salve este arquivo dentro da pasta `docs/js/`.
+3. Cole o seguinte conteúdo nele:
 
 ```javascript
 export const firebaseConfig = {
@@ -95,7 +96,7 @@ No arquivo `docs/index.html`, adicione no `<head>` (ANTES das outras tags script
   <!-- ... outros meta tags ... -->
   
   <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js" type="module"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
 </head>
 ```

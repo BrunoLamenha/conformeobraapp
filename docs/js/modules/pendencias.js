@@ -1,4 +1,4 @@
-import { loadCollection, saveDocument } from '../firebase-init.js';
+import { loadCollection, saveDocument, updateDocument } from '../firebase-init.js';
 
 const defaultPendencias = [
   {
@@ -174,22 +174,21 @@ export function initPendenciasModule() {
     filterPrioridade.addEventListener('change', refresh);
   }
 
-  document.addEventListener('click', (event) => {
+  document.addEventListener('click', async (event) => {
     const target = event.target.closest('.complete-pendencia');
     if (!target) return;
 
-    const pendenciaId = target.dataset.pendenciaId;
-    const storageKey = 'conformeobras:pendencias';
-    const current = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    const combined = current.length ? current : defaultPendencias;
-    const updated = combined.map((item) => {
-      const itemId = item.id || item.descricao;
-      if (itemId === pendenciaId) return { ...item, status: 'concluida' };
-      return item;
-    });
+    target.disabled = true;
+    target.textContent = 'Salvando...';
 
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    refresh();
+    const pendenciaId = target.dataset.pendenciaId;
+    if (!pendenciaId) return;
+
+    await updateDocument('pendencias', pendenciaId, { status: 'concluida' });
+    
+    // O listener do Firestore (se online) ou a atualização local já garantem
+    // que a UI será atualizada na próxima chamada de `refresh`.
+    refresh(); // Recarrega a lista para refletir a mudança.
   });
 
   if (form) {

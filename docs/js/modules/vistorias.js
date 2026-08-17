@@ -43,17 +43,6 @@ function getStatusLabel(status) {
   return map[status] || 'Sem status';
 }
 
-function getReformaChecklist() {
-  try {
-    const reformEntries = JSON.parse(localStorage.getItem('conformeobras:reformas') || '[]');
-    const last = reformEntries[reformEntries.length - 1];
-    if (!last || !Array.isArray(last.checklistGerado)) return [];
-    return last.checklistGerado;
-  } catch (error) {
-    return [];
-  }
-}
-
 function renderReformaVistoriaForm() {
   const container = document.getElementById('reformaVistoriaList');
   const form = document.getElementById('reformaVistoriaForm');
@@ -96,12 +85,11 @@ function renderReformaVistoriaForm() {
     .join('');
 }
 
-function renderVistorias(items) {
+function renderVistorias(items, reformaChecklist = []) {
   const list = document.getElementById('vistoriasChecklist');
 
   if (!list) return;
 
-  const reformaChecklist = getReformaChecklist();
   const normalized = reformaChecklist.length
     ? reformaChecklist.map((item) => ({
         titulo: `${item.room} · ${item.disciplina}`,
@@ -183,9 +171,20 @@ export function initVistoriasModule() {
   }
 
   const refresh = () => {
-    loadCollection('vistorias')
-      .then((items) => renderVistorias(items))
-      .catch(() => renderVistorias(defaultVistorias));
+    Promise.all([
+      loadCollection('vistorias'),
+      loadCollection('reformas')
+    ]).then(([vistorias, reformas]) => {
+      // Extrai o checklist da reforma mais recente
+      const lastReforma = reformas && reformas.length > 0 ? reformas[reformas.length - 1] : null;
+      const reformaChecklist = lastReforma?.checklistGerado || [];
+      
+      renderVistorias(vistorias, reformaChecklist);
+    }).catch(error => {
+      console.warn("Não foi possível carregar dados do Firestore, usando dados padrão.", error);
+      // Em caso de erro total, renderiza com os dados padrão e sem checklist
+      renderVistorias(defaultVistorias, []);
+    });
   };
 
   if (button) {
@@ -236,7 +235,14 @@ export function initVistoriasModule() {
   if (reformaVistoriaForm) {
     renderReformaVistoriaForm();
 
-    reformaVistoriaForm.addEventListener('submit', (event) => {
+    // A função getReformaChecklist foi removida, então precisamos carregar os dados aqui também.
+    const getReformaChecklistFromSource = async () => {
+      const reformas = await loadCollection('reformas');
+      const last = reformas[reformas.length - 1];
+      return (last && Array.isArray(last.checklistGerado)) ? last.checklistGerado : [];
+    };
+
+    reformaVistoriaForm.addEventListener('submit', async (event) => {
       event.preventDefault();
 
       const checklist = getReformaChecklist();

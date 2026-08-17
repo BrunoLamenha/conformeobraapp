@@ -251,62 +251,31 @@ export function initProjetosModule() {
   }
 
   // Handlers para visualizar e fazer download
-  document.addEventListener('click', (event) => {
+  document.addEventListener('click', async (event) => {
     const viewBtn = event.target.closest('.view-project');
     const downloadBtn = event.target.closest('.download-project');
     const expandBtn = event.target.closest('.expand-quantitativos');
     const closeBtn = event.target.closest('.close-modal');
 
-    if (viewBtn) {
-      const projetoId = viewBtn.dataset.projetoId;
-      loadCollection('projetos')
-        .then((items) => {
-          const projeto = items.find((p) => p.id === projetoId);
-          if (projeto) renderProjetoDetalhes(projeto);
-        })
-        .catch(() => {
-          const existing = JSON.parse(localStorage.getItem('conformeobras:projetos') || '[]');
-          const projeto = existing.find((p) => p.id === projetoId);
-          if (projeto) renderProjetoDetalhes(projeto);
-        });
+    if (viewBtn || expandBtn) {
+      const projetoId = (viewBtn || expandBtn).dataset.projetoId;
+      await handleProjetoAction(projetoId, (projeto) => {
+        renderProjetoDetalhes(projeto);
+      });
     }
 
     if (downloadBtn) {
       const projetoId = downloadBtn.dataset.projetoId;
-      loadCollection('projetos')
-        .then((items) => {
-          const projeto = items.find((p) => p.id === projetoId);
-          if (projeto && projeto.arquivo) {
-            const link = document.createElement('a');
-            link.href = projeto.arquivo;
-            link.download = `${projeto.nome}.pdf`;
-            link.click();
-          }
-        })
-        .catch(() => {
-          const existing = JSON.parse(localStorage.getItem('conformeobras:projetos') || '[]');
-          const projeto = existing.find((p) => p.id === projetoId);
-          if (projeto && projeto.arquivo) {
-            const link = document.createElement('a');
-            link.href = projeto.arquivo;
-            link.download = `${projeto.nome}.pdf`;
-            link.click();
-          }
-        });
-    }
-
-    if (expandBtn) {
-      const projetoId = expandBtn.dataset.projetoId;
-      loadCollection('projetos')
-        .then((items) => {
-          const projeto = items.find((p) => p.id === projetoId);
-          if (projeto) renderProjetoDetalhes(projeto);
-        })
-        .catch(() => {
-          const existing = JSON.parse(localStorage.getItem('conformeobras:projetos') || '[]');
-          const projeto = existing.find((p) => p.id === projetoId);
-          if (projeto) renderProjetoDetalhes(projeto);
-        });
+      await handleProjetoAction(projetoId, (projeto) => {
+        if (projeto.arquivo) {
+          const link = document.createElement('a');
+          link.href = projeto.arquivo;
+          link.download = `${projeto.nome}.pdf`;
+          document.body.appendChild(link); // Necessário para Firefox
+          link.click();
+          document.body.removeChild(link);
+        }
+      });
     }
 
     if (closeBtn) {

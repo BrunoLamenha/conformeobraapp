@@ -11,16 +11,17 @@
 // Enquanto isso, a app usa localStorage como fallback (funciona offline).
 // ============================================================================
 
-import { firebaseConfig } from './firebase-config.local.js'
+let firebaseConfig = {};
 
 // Tentar carregar config do arquivo local (se existir)
 try {
-  // @ts-ignore
-  if (typeof firebaseConfigLocal !== 'undefined') {
-    firebaseConfig = firebaseConfigLocal;
-  }
-} catch (e) {
-  // Arquivo local não encontrado, usa config padrão
+  const configModule = await import('./firebase-config.local.js');
+  firebaseConfig = configModule.firebaseConfig;
+} catch (error) {
+  console.warn(
+    'Arquivo de configuração local (firebase-config.local.js) não encontrado ou inválido. ' +
+    'O app funcionará em modo offline. Veja o arquivo DEPLOYMENT.md para configurar o Firebase.'
+  );
 }
 
 // Detecta se Firebase está disponível
@@ -36,8 +37,8 @@ export function getFirebaseConfig() {
 export function isFirebaseConfigured() {
   return (
     hasFirebase &&
-    firebaseConfig.projectId !== 'seu-projeto' &&
-    firebaseConfig.apiKey !== 'SUA_API_KEY_AQUI'
+    firebaseConfig.projectId &&
+    firebaseConfig.projectId !== 'seu-projeto'
   );
 }
 
@@ -80,6 +81,9 @@ export function initFirebase() {
 
     // Monitorar conectividade
     firebaseDb.enableNetwork();
+
+    // Tenta sincronizar dados pendentes na inicialização
+    syncPendingWrites();
   }
 
   return firebaseDb;
@@ -133,6 +137,54 @@ export function unwatchCollection(collectionName) {
   }
 }
 
+/**
+ * Sincroniza as escritas pendentes do localStorage com o Firestore.
+ * É acionado quando o app volta a ficar online.
+ */
+export async function syncPendingWrites() {
+  const db = initFirebase();
+  if (!db) return; // Se não há firebase, não há o que sincronizar
+
+  const syncQueueKey = 'conformeobras:sync_queue';
+  const pendingWrites = JSON.parse(localStorage.getItem(syncQueueKey) || '[]');
+
+  if (pendingWrites.length === 0) {
+    console.log('Nenhuma escrita pendente para sincronizar.');
+    return;
+  }
+
+  console.log(`Sincronizando ${pendingWrites.length} escritas pendentes...`);
+
+  // Limpa a fila local primeiro para evitar reprocessamento em caso de falha parcial
+  localStorage.setItem(syncQueueKey, JSON.stringify([]));
+
+  const failedWrites = [];
+
+  for (const write of pendingWrites) {
+    try {
+      if (write.type === 'update' && write.docId) {
+        await db.collection(write.collectionName).doc(write.docId).update(write.payload);
+      } else {
+        // Assume 'add' como padrão para compatibilidade com a versão anterior
+        await db.collection(write.collectionName).add(write.payload);
+      }
+      console.log(`✅ Item da coleção '${write.collectionName}' sincronizado com sucesso.`);
+    } catch (error) {
+      console.error(`❌ Falha ao sincronizar item para '${write.collectionName}'. Adicionando de volta à fila.`, error);
+      failedWrites.push(write);
+    }
+  }
+
+  // Se houver falhas, adiciona os itens de volta à fila para a próxima tentativa
+  if (failedWrites.length > 0) {
+    const remainingWrites = JSON.parse(localStorage.getItem(syncQueueKey) || '[]');
+    localStorage.setItem(syncQueueKey, JSON.stringify([...remainingWrites, ...failedWrites]));
+    console.warn(`${failedWrites.length} itens não puderam ser sincronizados e foram mantidos na fila.`);
+  } else {
+    console.log('🎉 Sincronização concluída com sucesso!');
+  }
+}
+
 function generateId() {
   if (window.crypto && window.crypto.randomUUID) {
     return window.crypto.randomUUID();
@@ -162,6 +214,36 @@ export async function saveDocument(collectionName, payload) {
   }
 }
 
+export async function updateDocument(collectionName, docId, payload) {
+  const db = initFirebase();
+  const updatePayload = {
+    ...payload,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (!db) {
+    // Fallback para localStorage se o Firebase não estiver disponível
+    return updateInLocalStorage(collectionName, docId, updatePayload);
+  }
+
+  try {
+    await db.collection(collectionName).doc(docId).update(updatePayload);
+    console.log(`Documento atualizado no Firestore: ${collectionName}/${docId}`);
+    // Atualiza também o cache local para consistência imediata
+    const items = await loadCollection(collectionName);
+    const index = items.findIndex(item => item.id === docId);
+    if (index > -1) {
+      items[index] = { ...items[index], ...updatePayload };
+      const key = `conformeobras:${collectionName}`;
+      localStorage.setItem(key, JSON.stringify(items));
+    }
+    return { id: docId, ...payload };
+  } catch (error) {
+    console.warn(`Firestore indisponível para atualização (${error.message}). Usando localStorage como fallback.`);
+    return updateInLocalStorage(collectionName, docId, updatePayload);
+  }
+}
+
 export async function loadCollection(collectionName) {
   const db = initFirebase();
 
@@ -185,18 +267,51 @@ export async function loadCollection(collectionName) {
 
 // Funções auxiliares de localStorage
 function saveToLocalStorage(collectionName, payload) {
-  const key = `conformeobras:${collectionName}`;
-  const current = JSON.parse(localStorage.getItem(key) || '[]');
+  const collectionKey = `conformeobras:${collectionName}`;
+  const syncQueueKey = 'conformeobras:sync_queue';
+
+  // 1. Adiciona à coleção local para atualização imediata da UI
+  const currentCollection = JSON.parse(localStorage.getItem(collectionKey) || '[]');
   const item = {
     id: generateId(),
     ...payload,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
+  currentCollection.push(item);
+  localStorage.setItem(collectionKey, JSON.stringify(currentCollection));
 
-  current.push(item);
-  localStorage.setItem(key, JSON.stringify(current));
+  // 2. Adiciona à fila de sincronização para envio posterior
+  const currentQueue = JSON.parse(localStorage.getItem(syncQueueKey) || '[]');
+  currentQueue.push({ type: 'add', collectionName, payload: item });
+  localStorage.setItem(syncQueueKey, JSON.stringify(currentQueue));
+
+  console.log(`Documento salvo localmente e adicionado à fila de sincronização: ${collectionName}`);
   return Promise.resolve(item);
+}
+
+window.addEventListener('online', syncPendingWrites);
+
+function updateInLocalStorage(collectionName, docId, payload) {
+  const collectionKey = `conformeobras:${collectionName}`;
+  const syncQueueKey = 'conformeobras:sync_queue';
+
+  // 1. Atualiza a coleção local
+  const currentCollection = JSON.parse(localStorage.getItem(collectionKey) || '[]');
+  const itemIndex = currentCollection.findIndex(item => item.id === docId);
+
+  if (itemIndex > -1) {
+    currentCollection[itemIndex] = { ...currentCollection[itemIndex], ...payload };
+    localStorage.setItem(collectionKey, JSON.stringify(currentCollection));
+  }
+
+  // 2. Adiciona a operação de 'update' à fila de sincronização
+  const currentQueue = JSON.parse(localStorage.getItem(syncQueueKey) || '[]');
+  currentQueue.push({ type: 'update', collectionName, docId, payload });
+  localStorage.setItem(syncQueueKey, JSON.stringify(currentQueue));
+
+  console.log(`Documento atualizado localmente e adicionado à fila de sincronização: ${collectionName}/${docId}`);
+  return Promise.resolve({ id: docId, ...payload });
 }
 
 function loadFromLocalStorage(collectionName) {

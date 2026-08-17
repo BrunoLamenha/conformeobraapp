@@ -222,7 +222,7 @@ export function initReformasModule() {
             room: roomCatalog[roomKey]?.label || roomKey,
             quantidade: item.quantidade || 1
           })),
-        checklistGerado,
+        checklistGerado, // O checklist gerado é incluído no payload para ser salvo no Firestore/localStorage
         status: 'pendente',
         percentual: 20,
         prazo: formData.get('prazo') || 'A definir'
