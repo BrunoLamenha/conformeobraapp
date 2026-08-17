@@ -6,12 +6,10 @@
   --line: #d7e0eb;
   --text: #122234;
   --muted: #587188;
-  --primary: #1d3557;
-  --primary-soft: rgba(29, 53, 87, 0.12);
-  --secondary: #4d7ea8;
-  --accent: #9bb9d1;
-  --success: #1f7a5e;
-  --warning: #c9822a;
+  --primary: #1d3557;      /* Azul escuro */
+  --secondary: #4d7ea8;    /* Azul médio */
+  --success: #1f7a5e;      /* Verde */
+  --warning: #c9822a;      /* Laranja */
   --shadow: 0 18px 40px rgba(17, 33, 49, 0.08);
 }
 

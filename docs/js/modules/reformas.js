@@ -58,6 +58,11 @@ const roomCatalog = {
       pintura: ['Pintura externa', 'Proteção', 'Selador'],
       acabamento: ['Portões', 'Grades', 'Mobiliário']
     }
+  },
+  const roomCatalog = {
+  novoComodo: {
+    label: 'Novo Cômodo',
+    disciplinas: { ... }
   }
 };
 

@@ -11,14 +11,7 @@
 // Enquanto isso, a app usa localStorage como fallback (funciona offline).
 // ============================================================================
 
-let firebaseConfig = {
-  apiKey: 'SUA_API_KEY_AQUI',
-  authDomain: 'seu-projeto.firebaseapp.com',
-  projectId: 'seu-projeto',
-  storageBucket: 'seu-projeto.appspot.com',
-  messagingSenderId: '123456789',
-  appId: '1:123456789:web:abcdef123456'
-};
+import { firebaseConfig } from './firebase-config.local.js'
 
 // Tentar carregar config do arquivo local (se existir)
 try {
