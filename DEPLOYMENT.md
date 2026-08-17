@@ -165,6 +165,85 @@ service cloud.firestore {
 
 ---
 
+## ☁️ PASSO 4: Configurar Cloud Functions (Backend)
+
+Para que o módulo de "Gerenciamento de Usuários" funcione, precisamos de uma Cloud Function para criar usuários e definir papéis de forma segura.
+
+### 4.1 Instalar Ferramentas (se ainda não fez)
+
+Você precisa do Node.js e do Firebase CLI.
+
+```bash
+# Instala o Firebase CLI globalmente
+npm install -g firebase-tools
+
+# Faz login na sua conta Google
+firebase login
+```
+
+### 4.2 Inicializar as Funções no Projeto
+
+1. No terminal, na pasta raiz do seu projeto (`conformeobraapp`), execute:
+   ```bash
+   firebase init functions
+   ```
+
+2. Responda às perguntas:
+   - **Use an existing project?** → Escolha seu projeto Firebase da lista.
+   - **What language would you like to use?** → `JavaScript`.
+   - **Do you want to use ESLint...?** → `y` (Sim).
+   - **Do you want to install dependencies with npm now?** → `y` (Sim).
+
+Isso criará uma pasta `functions` no seu projeto com os arquivos `index.js` e `package.json`.
+
+### 4.3 Adicionar o Código da Função
+
+1. Abra o arquivo `functions/index.js`.
+2. Substitua todo o conteúdo dele por este código:
+
+```javascript
+// functions/index.js
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+
+exports.setUserClaims = functions
+  .region("southamerica-east1") // Use a mesma região do seu Firestore
+  .https.onCall(async (data, context) => {
+    // Verifica se o chamador é um administrador
+    if (context.auth.token.role !== "admin") {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Apenas administradores podem executar esta operação."
+      );
+    }
+
+    const { email, companyId, role } = data;
+    let userRecord = await admin.auth().getUserByEmail(email).catch(() => null);
+
+    if (!userRecord) {
+      userRecord = await admin.auth().createUser({ email });
+    }
+
+    await admin.auth().setCustomUserClaims(userRecord.uid, { companyId, role });
+
+    return { success: true, uid: userRecord.uid };
+  });
+```
+
+### 4.4 Fazer Deploy da Função
+
+No terminal, na pasta raiz do projeto, execute:
+
+```bash
+firebase deploy --only functions
+```
+
+Aguarde a conclusão. Quando terminar, sua função estará ativa na nuvem do Firebase e o módulo de gerenciamento de usuários começará a funcionar.
+
+---
+
 ## 📤 PASSO 4: Fazer Commit e Push para GitHub
 
 ### 4.1 Inicializar Git (se ainda não fez)
