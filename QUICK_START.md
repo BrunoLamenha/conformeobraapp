@@ -25,7 +25,7 @@
 ### Passo 1: Abrir a App
 ```bash
 # Opção A: Abrir direto (mais rápido)
-1. Navegue até: c:\Users\Eduarda Rocha\Desktop\BRUNO\....Conforme Obras\conformeobraapp\public
+1. Navegue até: c:\Users\Eduarda Rocha\Desktop\BRUNO\....Conforme Obras\conformeobraapp\docs
 2. Clique duplo em index.html
 
 # Opção B: Servir localmente
@@ -119,7 +119,7 @@ Use o menu à esquerda para acessar cada módulo.
 2. Crie novo projeto
 3. Ative Firestore Database
 4. Copie credenciais
-5. Cole em `public/js/firebase-init.js`
+5. Crie o arquivo `firebase-config.local.js` na raiz e cole as credenciais nele.
 6. Pronto - sincroniza automaticamente
 
 ---
@@ -159,7 +159,7 @@ A app vem com alguns dados de exemplo para explorar:
 ## ⚙️ Configurações Avançadas
 
 ### Alterar Cores
-Edite `public/css/global.css`, seção `:root`:
+Edite `docs/css/global.css`, seção `:root`:
 ```css
 :root {
   --primary: #1d3557;      /* Azul escuro */

@@ -23,7 +23,7 @@ Aplicação web leve e responsiva para gestão operacional de obras, reformas, v
 ## 🚀 Como Usar Sem Instalar Muita Coisa
 
 ### Opção 1: Abrir Diretamente no Navegador
-1. Navegue até a pasta `public/`
+1. Navegue até a pasta `docs/`
 2. Clique duas vezes em `index.html`
 3. O app abre e funciona 100% no navegador
 
@@ -34,8 +34,8 @@ Aplicação web leve e responsiva para gestão operacional de obras, reformas, v
 cd "c:\Users\...\conformeobraapp"
 # Use Python 3
 python -m http.server 8000
-# OU se não tiver Python, use Node/Express
-npx http-server public
+# OU se não tiver Python, use Node
+npx http-server docs
 ```
 
 #### macOS / Linux
@@ -249,4 +249,3 @@ Para questões, problemas ou sugestões de features, consulte a documentação a
 
 **Desenvolvido com foco em simplicidade, leveza e usabilidade para campo.**  
 *v1.0 - Agosto 2026*
-

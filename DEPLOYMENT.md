@@ -88,14 +88,14 @@ export const firebaseConfig = {
 
 ### 2.2 Adicionar CDN do Firebase
 
-No arquivo `public/index.html`, adicione no `<head>` (ANTES das outras tags script):
+No arquivo `docs/index.html`, adicione no `<head>` (ANTES das outras tags script):
 
 ```html
 <head>
   <!-- ... outros meta tags ... -->
   
   <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js" type="module"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
 </head>
 ```
