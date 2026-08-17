@@ -98,7 +98,7 @@ Para usar sincronização em nuvem:
 - Escolha localização: **southamerica-east1** (São Paulo)
 
 ### 3. Configure a App
-- No arquivo `public/js/firebase-init.js`, procure:
+- No arquivo `docs/js/firebase-init.js`, procure:
   ```javascript
   const firebaseConfig = {
     apiKey: 'SUA_API_KEY_AQUI',
@@ -113,7 +113,7 @@ Para usar sincronização em nuvem:
 - Substitua pelas suas credenciais (encontre em Configurações do Projeto > Apps Web)
 
 ### 4. Adicione SDKs ao HTML
-No final da tag `<head>` do arquivo `public/index.html`, adicione:
+No final da tag `<head>` do arquivo `docs/index.html`, adicione:
 ```html
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>

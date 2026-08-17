@@ -103,7 +103,7 @@ No arquivo `docs/index.html`, adicione no `<head>` (ANTES das outras tags script
 
 ### 2.3 Atualizar firebase-init.js
 
-O arquivo `public/js/firebase-init.js` já está preparado para importar sua configuração local. Você não precisa alterá-lo.
+O arquivo `docs/js/firebase-init.js` já está preparado para importar sua configuração local. Você não precisa alterá-lo.
 
 Ele tentará carregar as credenciais do `firebase-config.local.js`. Se o arquivo não for encontrado, o app exibirá um alerta no console e continuará funcionando em modo offline.
 
@@ -369,7 +369,7 @@ firebase init hosting
 
 Respostas sugeridas:
 - **Use an existing Firebase project?** → Escolha seu projeto
-- **What do you want to use as your public directory?** → `public`
+- **What do you want to use as your public directory?** → `docs`
 - **Configure as single-page app?** → `y` (yes)
 - **Set up automatic builds and deploys with GitHub?** → `n` (no, por enquanto)
 
