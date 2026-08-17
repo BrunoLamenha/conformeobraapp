@@ -13,6 +13,7 @@ import { initPendenciasModule } from './modules/pendencias.js';
 import { saveDocument, loadCollection, initFirebase } from './firebase-init.js';
 
 const navItems = document.querySelectorAll('.nav-item');
+const allNavButtons = document.querySelectorAll('.nav-item, .nav-bottom-item');
 const views = document.querySelectorAll('.view');
 const wizardOverlay = document.getElementById('wizardOverlay');
 const closeWizardButton = document.getElementById('closeWizard');
@@ -52,17 +53,10 @@ function activateView(viewId) {
     view.classList.toggle('active', isActive);
   });
 
-  // Atualizar navbar inferior
-  bottomNavItems.forEach((btn) => {
+  // Atualizar estado ativo dos botões de navegação (sidebar e inferior)
+  allNavButtons.forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.view === viewId);
   });
-
-  // Atualizar sidebar se existir
-  if (navItems.length > 0) {
-    navItems.forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.view === viewId);
-    });
-  }
 
   // Atualizar título da página
   const pageTitle = document.getElementById('pageTitle');

@@ -251,25 +251,17 @@ export function initRelatoriosModule() {
   card.dataset.module = 'relatorios';
 
   const loadAndRender = async () => {
-    try {
-      const reformas = await loadCollection('reformas');
-      const pendencias = await loadCollection('pendencias');
-      const vistorias = await loadCollection('vistorias');
+    // A função loadCollection já possui fallback para localStorage,
+    // então não precisamos de um bloco try/catch aqui.
+    const reformas = await loadCollection('reformas');
+    const pendencias = await loadCollection('pendencias');
+    const vistorias = await loadCollection('vistorias');
 
-      const report = generateReformaReport(reformas, pendencias, vistorias);
-      renderRelatorioVisual(report);
+    const report = generateReformaReport(reformas, pendencias, vistorias);
+    renderRelatorioVisual(report);
 
-      // Armazena o relatório atual para exportação
-      card.dataset.currentReport = JSON.stringify(report);
-    } catch (error) {
-      const reformas = JSON.parse(localStorage.getItem('conformeobras:reformas') || '[]');
-      const pendencias = JSON.parse(localStorage.getItem('conformeobras:pendencias') || '[]');
-      const vistorias = JSON.parse(localStorage.getItem('conformeobras:vistorias') || '[]');
-
-      const report = generateReformaReport(reformas, pendencias, vistorias);
-      renderRelatorioVisual(report);
-      card.dataset.currentReport = JSON.stringify(report);
-    }
+    // Armazena o relatório atual para exportação
+    card.dataset.currentReport = JSON.stringify(report);
   };
 
   if (button) {

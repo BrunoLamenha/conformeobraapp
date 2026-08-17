@@ -140,60 +140,47 @@ function generateId() {
   return `item-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function saveDocument(collectionName, payload) {
+export async function saveDocument(collectionName, payload) {
   const db = initFirebase();
 
-  // Tenta usar Firestore se disponível
-  if (db) {
-    try {
-      return db
-        .collection(collectionName)
-        .add({
-          ...payload,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        })
-        .then((docRef) => {
-          console.log(`Documento salvo em Firestore: ${collectionName}/${docRef.id}`);
-          return { id: docRef.id, ...payload };
-        })
-        .catch((error) => {
-          console.warn(`Firestore indisponível (${error.message}). Usando localStorage.`);
-          return saveToLocalStorage(collectionName, payload);
-        });
-    } catch (error) {
-      console.warn(`Erro ao salvar no Firestore: ${error.message}. Usando localStorage.`);
-      return saveToLocalStorage(collectionName, payload);
-    }
+  if (!db) {
+    // Fallback direto para localStorage se o Firebase não estiver inicializado
+    return saveToLocalStorage(collectionName, payload);
   }
 
-  // Fallback: localStorage
-  return saveToLocalStorage(collectionName, payload);
+  try {
+    const docRef = await db.collection(collectionName).add({
+      ...payload,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    console.log(`Documento salvo em Firestore: ${collectionName}/${docRef.id}`);
+    return { id: docRef.id, ...payload };
+  } catch (error) {
+    console.warn(`Firestore indisponível (${error.message}). Usando localStorage como fallback.`);
+    return saveToLocalStorage(collectionName, payload);
+  }
 }
 
-export function loadCollection(collectionName) {
+export async function loadCollection(collectionName) {
   const db = initFirebase();
 
-  // Tenta usar Firestore se disponível
-  if (db) {
-    return db
-      .collection(collectionName)
-      .get()
-      .then((snapshot) => {
-        const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        // Também salvar no localStorage como backup
-        const key = `conformeobras:${collectionName}`;
-        localStorage.setItem(key, JSON.stringify(items));
-        return items;
-      })
-      .catch((error) => {
-        console.warn(`Firestore indisponível (${error.message}). Usando localStorage.`);
-        return loadFromLocalStorage(collectionName);
-      });
+  if (!db) {
+    // Fallback direto para localStorage se o Firebase não estiver inicializado
+    return loadFromLocalStorage(collectionName);
   }
 
-  // Fallback: localStorage
-  return Promise.resolve(loadFromLocalStorage(collectionName));
+  try {
+    const snapshot = await db.collection(collectionName).get();
+    const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    // Também salvar no localStorage como backup para uso offline futuro
+    const key = `conformeobras:${collectionName}`;
+    localStorage.setItem(key, JSON.stringify(items));
+    return items;
+  } catch (error) {
+    console.warn(`Firestore indisponível (${error.message}). Usando localStorage como fallback.`);
+    return loadFromLocalStorage(collectionName);
+  }
 }
 
 // Funções auxiliares de localStorage
