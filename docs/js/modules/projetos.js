@@ -1,4 +1,5 @@
 import { loadCollection, saveDocument } from '../firebase-init.js';
+import { showToast } from '../utils/toast.js';
 
 const defaultProjetos = [
   {
@@ -210,43 +211,42 @@ export function initProjetosModule() {
   }
 
   if (form) {
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Salvando...';
 
-      const formData = new FormData(form);
-      const quantitativos = form.dataset.quantitativos
-        ? JSON.parse(form.dataset.quantitativos)
-        : [];
+      try {
+        const formData = new FormData(form);
+        const quantitativos = form.dataset.quantitativos
+          ? JSON.parse(form.dataset.quantitativos)
+          : [];
 
-      const payload = {
-        id: `proj-${Date.now()}`,
-        nome: formData.get('nome') || 'Projeto sem nome',
-        obra: formData.get('obra') || 'Não informado',
-        responsavel: formData.get('responsavel') || 'Não informado',
-        dataUpload: new Date().toISOString().split('T')[0],
-        arquivo: form.dataset.pdfDataUrl || null,
-        quantitativos,
-        status: formData.get('status') || 'ativo'
-      };
+        const payload = {
+          nome: formData.get('nome') || 'Projeto sem nome',
+          obra: formData.get('obra') || 'Não informado',
+          responsavel: formData.get('responsavel') || 'Não informado',
+          dataUpload: new Date().toISOString().split('T')[0],
+          arquivo: form.dataset.pdfDataUrl || null,
+          quantitativos,
+          status: formData.get('status') || 'ativo'
+        };
 
-      saveDocument('projetos', payload)
-        .then(() => {
-          form.reset();
-          if (analysisDiv) analysisDiv.innerHTML = '';
-          delete form.dataset.quantitativos;
-          delete form.dataset.pdfDataUrl;
-          refresh();
-        })
-        .catch(() => {
-          const existing = JSON.parse(localStorage.getItem('conformeobras:projetos') || '[]');
-          existing.push(payload);
-          localStorage.setItem('conformeobras:projetos', JSON.stringify(existing));
-          form.reset();
-          if (analysisDiv) analysisDiv.innerHTML = '';
-          delete form.dataset.quantitativos;
-          delete form.dataset.pdfDataUrl;
-          refresh();
-        });
+        await saveDocument('projetos', payload);
+        showToast('Projeto salvo com sucesso!', 'success');
+        form.reset();
+        if (analysisDiv) analysisDiv.innerHTML = '';
+        delete form.dataset.quantitativos;
+        delete form.dataset.pdfDataUrl;
+        refresh();
+      } catch (error) {
+        showToast('Erro ao salvar o projeto.', 'error');
+        console.error('Erro ao salvar projeto:', error);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Salvar projeto';
+      }
     });
   }
 

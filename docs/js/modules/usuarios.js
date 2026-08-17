@@ -1,6 +1,7 @@
 // docs/js/modules/usuarios.js
 
 import { initFirebase, loadCollection, updateDocument, saveDocument } from '../firebase-init.js';
+import { showToast } from '../utils/toast.js';
 
 let userEditModal;
 let userModalTitle;
@@ -93,7 +94,9 @@ async function openUserModalForEdit(userId) {
 
 async function handleSaveUser(e) {
     e.preventDefault();
-    const db = initFirebase(); // Garante que o Firebase está inicializado
+    const submitButton = userEditForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Salvando...';
 
     const userId = userEditForm.dataset.userId;
     const formData = new FormData(userEditForm);
@@ -106,22 +109,26 @@ async function handleSaveUser(e) {
     };
 
     try {
+        const action = userId ? 'atualizado' : 'salvo';
         if (userId) {
             // Editando um usuário existente
             await updateDocument('usuarios', userId, payload);
         } else {
             // Criando um novo usuário
-            // Uma Cloud Function seria ideal aqui para criar o usuário no Firebase Auth
-            // Por enquanto, apenas salvamos no Firestore/localStorage
+            // Idealmente, uma Cloud Function criaria o usuário no Firebase Auth.
+            // Por enquanto, apenas salvamos no Firestore/localStorage.
             await saveDocument('usuarios', payload);
         }
 
-        alert('Usuário salvo com sucesso!');        
+        showToast(`Usuário ${action} com sucesso!`, 'success');
         userEditModal.style.display = 'none';        
         loadAndRenderUsers();
 
     } catch (error) {
         console.error('Erro ao salvar usuário:', error);
-        alert('Erro ao salvar usuário. Verifique o console para mais detalhes.');
+        showToast('Erro ao salvar usuário.', 'error');
+    } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Salvar usuário';
     }
 }

@@ -1,4 +1,5 @@
 import { loadCollection, saveDocument } from '../firebase-init.js';
+import { showToast } from '../utils/toast.js';
 
 const defaultVistorias = [
   {
@@ -199,35 +200,36 @@ export function initVistoriasModule() {
   if (form) {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Salvando...';
 
-      const formData = new FormData(form);
-      const payload = {
-        titulo: `Vistoria - ${formData.get('obra') || 'obra'}`,
-        obra: formData.get('obra') || 'Não informado',
-        area: formData.get('area') || 'Não informado',
-        responsavel: formData.get('responsavel') || 'Não informado',
-        status: formData.get('status') || 'pendente',
-        observacoes: formData.get('observacoes') || 'Sem observações',
-        pendencias: formData.get('pendencias') || 'Nenhuma.',
-        fotos: photoInput && photoInput.files ? await readFilesAsDataUrls(photoInput.files) : []
-      };
+      try {
+        const formData = new FormData(form);
+        const payload = {
+          titulo: `Vistoria - ${formData.get('obra') || 'obra'}`,
+          obra: formData.get('obra') || 'Não informado',
+          area: formData.get('area') || 'Não informado',
+          responsavel: formData.get('responsavel') || 'Não informado',
+          status: formData.get('status') || 'pendente',
+          observacoes: formData.get('observacoes') || 'Sem observações',
+          pendencias: formData.get('pendencias') || 'Nenhuma.',
+          fotos: photoInput && photoInput.files ? await readFilesAsDataUrls(photoInput.files) : []
+        };
 
-      saveDocument('vistorias', payload)
-        .then(() => {
-          form.reset();
-          const preview = document.getElementById('photoPreview');
-          if (preview) preview.innerHTML = '<span class="empty-state">Nenhuma foto selecionada.</span>';
-          refresh();
-        })
-        .catch(() => {
-          const existing = JSON.parse(localStorage.getItem('conformeobras:vistorias') || '[]');
-          existing.push(payload);
-          localStorage.setItem('conformeobras:vistorias', JSON.stringify(existing));
-          form.reset();
-          const preview = document.getElementById('photoPreview');
-          if (preview) preview.innerHTML = '<span class="empty-state">Nenhuma foto selecionada.</span>';
-          refresh();
-        });
+        await saveDocument('vistorias', payload);
+        showToast('Vistoria salva com sucesso!', 'success');
+        form.reset();
+        const preview = document.getElementById('photoPreview');
+        if (preview) preview.innerHTML = '<span class="empty-state">Nenhuma foto selecionada.</span>';
+        refresh();
+      } catch (error) {
+        console.error('Erro ao salvar vistoria:', error);
+        showToast('Erro ao salvar vistoria.', 'error');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Salvar vistoria';
+      }
     });
   }
 
@@ -251,7 +253,7 @@ export function initVistoriasModule() {
       try {
         const checklist = await getReformaChecklistFromSource();
         if (!checklist.length) {
-          alert('Não há checklist de reforma para salvar.');
+          showToast('Não há checklist de reforma para salvar.', 'info');
           return;
         }
 
@@ -269,10 +271,10 @@ export function initVistoriasModule() {
         const payload = { itens: items };
         await saveDocument('vistoriasReforma', payload);
 
-        alert('Vistoria da reforma salva com sucesso!');
+        showToast('Vistoria da reforma salva!', 'success');
       } catch (error) {
         console.error('Erro ao salvar vistoria da reforma:', error);
-        alert('Ocorreu um erro ao salvar a vistoria.');
+        showToast('Ocorreu um erro ao salvar a vistoria.', 'error');
       } finally {
         submitButton.disabled = false;
         submitButton.textContent = 'Salvar vistoria';

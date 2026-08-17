@@ -683,6 +683,25 @@
               <button class="secondary-btn" id="logoutBtn">Sair</button>
             </div>
           </div>
+
+          <!-- Formulário de Edição (oculto por padrão) -->
+          <div id="profileEditForm" class="profile-edit-form hidden">
+            <div class="profile-info">
+              <h2>Editar Perfil</h2>
+            </div>
+            <label>
+              Nome
+              <input type="text" id="editProfileName" placeholder="Seu nome completo" />
+            </label>
+            <label>
+              Empresa (não pode ser alterada)
+              <input type="text" id="editProfileCompany" readonly />
+            </label>
+            <div class="profile-actions">
+              <button class="primary-btn" id="saveProfileBtn">Salvar Alterações</button>
+              <button class="secondary-btn" id="cancelEditProfileBtn">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
 

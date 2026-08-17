@@ -1105,6 +1105,26 @@ h1 {
   padding: 12px;
 }
 
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+}
+
+.profile-edit-form.hidden {
+  display: none;
+}
+
+.profile-edit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--text);
+  width: 100%;
+}
+
 /* MODAL DE MÓ DULOS */
 .modules-modal {
   position: fixed;

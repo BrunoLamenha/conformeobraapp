@@ -1,4 +1,5 @@
 import { loadCollection, saveDocument } from '../firebase-init.js';
+import { showToast } from '../utils/toast.js';
 
 const roomCatalog = {
   suite: {
@@ -196,52 +197,54 @@ export function initReformasModule() {
       });
     });
 
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Salvando...';
 
-      const formData = new FormData(form);
-      const selection = {};
+      try {
+        const formData = new FormData(form);
+        const selection = {};
 
-      roomInputs.forEach((input) => {
-        const roomKey = input.dataset.room;
-        const quantityInput = form.querySelector(`[data-room-qty="${roomKey}"]`);
-        selection[roomKey] = {
-          enabled: input.checked,
-          quantidade: quantityInput ? Number(quantityInput.value || 1) : 1
-        };
-      });
-
-      const checklistGerado = buildChecklistFromSelection(selection);
-      const payload = {
-        titulo: `Reforma - ${formData.get('obra') || 'obra'}`,
-        obra: formData.get('obra') || 'Não informado',
-        responsavel: formData.get('responsavel') || 'Não informado',
-        comodos: Object.entries(selection)
-          .filter(([, item]) => item.enabled)
-          .map(([roomKey, item]) => ({
-            room: roomCatalog[roomKey]?.label || roomKey,
-            quantidade: item.quantidade || 1
-          })),
-        checklistGerado, // O checklist gerado é incluído no payload para ser salvo no Firestore/localStorage
-        status: 'pendente',
-        percentual: 20,
-        prazo: formData.get('prazo') || 'A definir'
-      };
-
-      saveDocument('reformas', payload)
-        .then(() => {
-          form.reset();
-          if (preview) renderChecklistPreview({});
-          refresh();
-        })
-        .catch(() => {
-          const current = JSON.parse(localStorage.getItem('conformeobras:reformas') || '[]');
-          current.push(payload);
-          localStorage.setItem('conformeobras:reformas', JSON.stringify(current));
-          form.reset();
-          if (preview) renderChecklistPreview({});
-          refresh();
+        roomInputs.forEach((input) => {
+          const roomKey = input.dataset.room;
+          const quantityInput = form.querySelector(`[data-room-qty="${roomKey}"]`);
+          selection[roomKey] = {
+            enabled: input.checked,
+            quantidade: quantityInput ? Number(quantityInput.value || 1) : 1
+          };
         });
+
+        const checklistGerado = buildChecklistFromSelection(selection);
+        const payload = {
+          titulo: `Reforma - ${formData.get('obra') || 'obra'}`,
+          obra: formData.get('obra') || 'Não informado',
+          responsavel: formData.get('responsavel') || 'Não informado',
+          comodos: Object.entries(selection)
+            .filter(([, item]) => item.enabled)
+            .map(([roomKey, item]) => ({
+              room: roomCatalog[roomKey]?.label || roomKey,
+              quantidade: item.quantidade || 1
+            })),
+          checklistGerado, // O checklist gerado é incluído no payload para ser salvo no Firestore/localStorage
+          status: 'pendente',
+          percentual: 20,
+          prazo: formData.get('prazo') || 'A definir'
+        };
+
+        await saveDocument('reformas', payload);
+        showToast('Reforma salva com sucesso!', 'success');
+        form.reset();
+        if (preview) renderChecklistPreview({});
+        refresh();
+      } catch (error) {
+        showToast('Erro ao salvar a reforma.', 'error');
+        console.error('Erro ao salvar reforma:', error);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Salvar reforma';
+      }
     });
   }
 

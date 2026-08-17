@@ -111,6 +111,9 @@ function handleLogin(event) {
   currentUser.name = userName;
   currentUser.company = companyName;
 
+  // Salva o último usuário no localStorage para preenchimento automático
+  localStorage.setItem('conformeobras:lastUser', JSON.stringify({ company: companyName, name: userName }));
+
   userAvatar.textContent = initials || 'U';
   
   // Atualizar perfil modal
@@ -118,6 +121,29 @@ function handleLogin(event) {
     document.getElementById('profileName').textContent = userName;
     document.getElementById('profileCompany').textContent = companyName;
     document.getElementById('profileAvatarLarge').textContent = initials || 'U';
+  }
+}
+
+/**
+ * Carrega os dados do último usuário logado do localStorage e preenche o formulário.
+ */
+function loadLastUser() {
+  const lastUserJson = localStorage.getItem('conformeobras:lastUser');
+  if (lastUserJson) {
+    try {
+      const lastUser = JSON.parse(lastUserJson);
+      if (lastUser.company) {
+        document.getElementById('companySelect').value = lastUser.company;
+      }
+      if (lastUser.name) {
+        document.getElementById('userName').value = lastUser.name;
+        // Foca no campo de senha para agilizar o login
+        document.getElementById('userPassword').focus();
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do último usuário:', error);
+      localStorage.removeItem('conformeobras:lastUser'); // Limpa dados corrompidos
+    }
   }
 }
 
@@ -198,6 +224,56 @@ async function handleSearch(event) {
     console.error('Erro ao realizar a busca:', error);
     searchResults.innerHTML = '<p class="error">Ocorreu um erro ao buscar. Tente novamente.</p>';
   }
+}
+
+// EDITAR PERFIL
+const editProfileBtn = document.getElementById('editProfileBtn');
+const saveProfileBtn = document.getElementById('saveProfileBtn');
+const cancelEditProfileBtn = document.getElementById('cancelEditProfileBtn');
+const profileContent = profileModal?.querySelector('.profile-content');
+const profileEditForm = profileModal?.querySelector('#profileEditForm');
+
+if (editProfileBtn) {
+  editProfileBtn.addEventListener('click', () => {
+    // Preenche o formulário com os dados atuais
+    document.getElementById('editProfileName').value = currentUser.name;
+    document.getElementById('editProfileCompany').value = currentUser.company;
+
+    // Alterna a visibilidade
+    profileContent.classList.add('hidden');
+    profileEditForm.classList.remove('hidden');
+  });
+}
+
+if (cancelEditProfileBtn) {
+  cancelEditProfileBtn.addEventListener('click', () => {
+    // Apenas volta para a visualização
+    profileContent.classList.remove('hidden');
+    profileEditForm.classList.add('hidden');
+  });
+}
+
+if (saveProfileBtn) {
+  saveProfileBtn.addEventListener('click', () => {
+    const newName = document.getElementById('editProfileName').value.trim();
+    if (!newName) {
+      alert('O nome não pode ficar em branco.');
+      return;
+    }
+
+    // Atualiza o objeto currentUser
+    currentUser.name = newName;
+
+    // Recalcula e atualiza a UI
+    const initials = newName.split(' ').slice(0, 2).map(word => word.charAt(0).toUpperCase()).join('');
+    userAvatar.textContent = initials || 'U';
+    document.getElementById('profileName').textContent = newName;
+    document.getElementById('profileAvatarLarge').textContent = initials || 'U';
+
+    // Volta para a visualização
+    profileContent.classList.remove('hidden');
+    profileEditForm.classList.add('hidden');
+  });
 }
 
 // PERFIL
@@ -419,5 +495,6 @@ window.addEventListener('storage', () => {
 });
 
 setupSyncStatus();
+loadLastUser();
 activateView('dashboard');
 updateWizardUI();

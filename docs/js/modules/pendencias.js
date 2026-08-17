@@ -182,17 +182,10 @@ export function initPendenciasModule() {
     target.disabled = true;
     target.textContent = 'Salvando...';
 
-    const pendenciaId = target.dataset.pendenciaId;
-    if (!pendenciaId) return;
     try {
       const pendenciaId = target.dataset.pendenciaId;
       if (!pendenciaId) return;
 
-    await updateDocument('pendencias', pendenciaId, { status: 'concluida' });
-    
-    // O listener do Firestore (se online) ou a atualização local já garantem
-    // que a UI será atualizada na próxima chamada de `refresh`.
-    refresh(); // Recarrega a lista para refletir a mudança.
       await updateDocument('pendencias', pendenciaId, { status: 'concluida' });
       showToast('Pendência marcada como concluída!', 'success');
       refresh(); // Recarrega a lista para refletir a mudança.
@@ -224,18 +217,6 @@ export function initPendenciasModule() {
         fotos
       };
 
-      saveDocument('pendencias', payload)
-        .then(() => {
-          form.reset();
-          refresh();
-        })
-        .catch(() => {
-          const existing = JSON.parse(localStorage.getItem('conformeobras:pendencias') || '[]');
-          existing.push(payload);
-          localStorage.setItem('conformeobras:pendencias', JSON.stringify(existing));
-          form.reset();
-          refresh();
-        });
       try {
         await saveDocument('pendencias', payload);
         showToast('Pendência salva com sucesso!', 'success');
