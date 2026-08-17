@@ -1,4 +1,5 @@
 // ============================================================================
+import { updateSyncStatus } from './modules/syncStatus.js';
 // CONFIGURAÇÃO FIREBASE
 // ============================================================================
 // Para usar Firebase Firestore:
@@ -43,6 +44,7 @@ export function isFirebaseConfigured() {
 }
 
 let firebaseDb = null;
+let functions = null;
 
 export function initFirebase() {
   if (!hasFirebase) {
@@ -67,6 +69,7 @@ export function initFirebase() {
 
   if (!firebaseDb) {
     firebaseDb = window.firebase.firestore();
+    if (window.firebase.functions) functions = window.firebase.functions();
     
     // Habilitar persistência offline
     try {
@@ -87,6 +90,10 @@ export function initFirebase() {
   }
 
   return firebaseDb;
+}
+
+export function getFunctions() {
+  return functions;
 }
 
 // Adicionar listener de sincronização em tempo real
@@ -142,6 +149,8 @@ export function unwatchCollection(collectionName) {
  * É acionado quando o app volta a ficar online.
  */
 export async function syncPendingWrites() {
+  updateSyncStatus('syncing');
+
   const db = initFirebase();
   if (!db) return; // Se não há firebase, não há o que sincronizar
 
@@ -150,10 +159,12 @@ export async function syncPendingWrites() {
 
   if (pendingWrites.length === 0) {
     console.log('Nenhuma escrita pendente para sincronizar.');
+    updateSyncStatus('online');
     return;
   }
 
   console.log(`Sincronizando ${pendingWrites.length} escritas pendentes...`);
+  
 
   // Limpa a fila local primeiro para evitar reprocessamento em caso de falha parcial
   localStorage.setItem(syncQueueKey, JSON.stringify([]));
@@ -182,6 +193,8 @@ export async function syncPendingWrites() {
     console.warn(`${failedWrites.length} itens não puderam ser sincronizados e foram mantidos na fila.`);
   } else {
     console.log('🎉 Sincronização concluída com sucesso!');
+    // Apenas muda para 'online' se não houver falhas.
+    updateSyncStatus('online');
   }
 }
 

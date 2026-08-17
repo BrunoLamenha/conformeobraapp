@@ -244,26 +244,39 @@ export function initVistoriasModule() {
 
     reformaVistoriaForm.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const submitButton = reformaVistoriaForm.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Salvando...';
 
-      const checklist = getReformaChecklist();
-      const items = checklist.map((item, index) => {
+      try {
+        const checklist = await getReformaChecklistFromSource();
+        if (!checklist.length) {
+          alert('Não há checklist de reforma para salvar.');
+          return;
+        }
+
+        const items = checklist.map((item, index) => {
         const statusElement = reformaVistoriaForm.querySelectorAll('[data-item-status]')[index];
         const noteElement = reformaVistoriaForm.querySelectorAll('textarea')[index];
 
-        return {
-          ...item,
-          status: statusElement ? statusElement.value : 'pendente',
-          observacao: noteElement ? noteElement.value : ''
-        };
-      });
+          return {
+            ...item,
+            status: statusElement ? statusElement.value : 'pendente',
+            observacao: noteElement ? noteElement.value : ''
+          };
+        });
 
-      const saved = JSON.parse(localStorage.getItem('conformeobras:vistoriasReforma') || '[]');
-      saved.push({
-        createdAt: new Date().toISOString(),
-        itens: items
-      });
-      localStorage.setItem('conformeobras:vistoriasReforma', JSON.stringify(saved));
-      alert('Vistoria da reforma salva com sucesso!');
+        const payload = { itens: items };
+        await saveDocument('vistoriasReforma', payload);
+
+        alert('Vistoria da reforma salva com sucesso!');
+      } catch (error) {
+        console.error('Erro ao salvar vistoria da reforma:', error);
+        alert('Ocorreu um erro ao salvar a vistoria.');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Salvar vistoria';
+      }
     });
   }
 

@@ -1,65 +1,127 @@
-import { saveDocument, loadCollection } from '../firebase-init.js';
+// docs/js/modules/usuarios.js
 
-function renderUsuarios(users = []) {
-  const list = document.getElementById('userList');
-  if (!list) return;
+import { initFirebase, loadCollection, updateDocument, saveDocument } from '../firebase-init.js';
 
-  if (!users.length) {
-    list.innerHTML = '<li class="empty-state">Nenhum usuário cadastrado ainda.</li>';
-    return;
-  }
-
-  list.innerHTML = users
-    .map(
-      (user) => `
-        <li>
-          <strong>${user.nome || 'Usuário sem nome'}</strong>
-          <small>${user.empresa || 'Empresa não informada'} · ${user.perfil || 'Perfil não definido'}</small>
-        </li>
-      `
-    )
-    .join('');
-}
+let userEditModal;
+let userModalTitle;
+let userEditForm;
+let usersListContainer;
+let addNewUserButton;
 
 export function initUsuariosModule() {
-  const form = document.getElementById('userForm');
-  const trigger = document.querySelector('[data-trigger-user-form]');
+    userEditModal = document.getElementById('userFormModal'); // Corrigido para o ID do modal no HTML
+    if (!userEditModal) return; // Se o modal não existe, o módulo não pode funcionar
 
-  if (!form) return;
+    userModalTitle = userEditModal.querySelector('.modal-header h2');
+    userEditForm = document.getElementById('userForm');
+    usersListContainer = document.getElementById('userList');
+    addNewUserButton = document.querySelector('[data-trigger-user-form]');
 
-  if (trigger) {
-    trigger.addEventListener('click', () => {
-      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      const firstInput = form.querySelector('input[name="nome"]');
-      if (firstInput) firstInput.focus();
+    if (addNewUserButton) {
+        addNewUserButton.addEventListener('click', openUserModalForCreate);
+    }
+    userEditModal.querySelector('.close-modal').addEventListener('click', () => userEditModal.style.display = 'none');
+    userEditForm.addEventListener('submit', handleSaveUser);
+
+    loadAndRenderUsers();
+}
+
+async function loadAndRenderUsers() {
+    if (!usersListContainer) return;
+    usersListContainer.innerHTML = '<li>Carregando usuários...</li>';
+
+    try {
+        // A função loadCollection já tem fallback para localStorage
+        const users = await loadCollection('usuarios');
+        renderUsersList(users);
+    } catch (error) {
+        console.error("Erro ao carregar usuários: ", error);
+        usersListContainer.innerHTML = '<li class="error">Não foi possível carregar os usuários.</li>';
+    }
+}
+
+function renderUsersList(users) {
+    if (!usersListContainer) return;
+
+    if (!users || users.length === 0) {
+        usersListContainer.innerHTML = '<li>Nenhum usuário encontrado.</li>';
+        return;
+    }
+
+    usersListContainer.innerHTML = users.map(user => `
+        <li data-user-id="${user.id}">
+            <span>${user.nome || 'Nome não definido'} (${user.email || 'sem e-mail'})</span>
+            <small>${user.empresa || 'N/A'} - ${user.perfil || 'user'}</small>
+            <button class="tertiary-btn edit-user-btn">Editar</button>
+        </li>
+    `).join('');
+
+    document.querySelectorAll('.edit-user-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const userId = e.target.closest('li').dataset.userId;
+            openUserModalForEdit(userId);
+        });
     });
-  }
+}
 
-  const refreshUsers = () => {
-    loadCollection('usuarios')
-      .then((items) => renderUsuarios(items))
-      .catch((error) => {
-        console.error('Erro ao carregar usuários:', error);
-        renderUsuarios([]);
-      });
-  };
+function openUserModalForCreate() {
+    if (!userEditModal) return;
+    userModalTitle.textContent = 'Cadastrar Novo Usuário';
+    userEditForm.reset();
+    userEditForm.dataset.userId = ''; // Limpa o ID do usuário
+    userEditForm.querySelector('input[name="email"]').readOnly = false;
+    userEditModal.style.display = 'block';
+}
 
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
+async function openUserModalForEdit(userId) {
+    if (!userEditModal) return;
+    const users = await loadCollection('usuarios');
+    const userData = users.find(u => u.id === userId);
 
-    const payload = Object.fromEntries(new FormData(form).entries());
+    if (userData) {
+        userModalTitle.textContent = 'Editar Usuário';
+        userEditForm.dataset.userId = userId;
+        userEditForm.querySelector('input[name="nome"]').value = userData.nome || '';
+        userEditForm.querySelector('select[name="empresa"]').value = userData.empresa || '';
+        const emailInput = userEditForm.querySelector('input[name="email"]');
+        emailInput.value = userData.email || '';
+        emailInput.readOnly = true; // Não permite editar email
+        userEditForm.querySelector('select[name="perfil"]').value = userData.perfil || 'operacional';
+        userEditModal.style.display = 'block';
+    }
+}
 
-    saveDocument('usuarios', payload)
-      .then(() => {
-        form.reset();
-        refreshUsers();
-      })
-      .catch((error) => {
+async function handleSaveUser(e) {
+    e.preventDefault();
+    const db = initFirebase(); // Garante que o Firebase está inicializado
+
+    const userId = userEditForm.dataset.userId;
+    const formData = new FormData(userEditForm);
+
+    const payload = {
+        nome: formData.get('nome'),
+        empresa: formData.get('empresa'),
+        email: formData.get('email'),
+        perfil: formData.get('perfil'),
+    };
+
+    try {
+        if (userId) {
+            // Editando um usuário existente
+            await updateDocument('usuarios', userId, payload);
+        } else {
+            // Criando um novo usuário
+            // Uma Cloud Function seria ideal aqui para criar o usuário no Firebase Auth
+            // Por enquanto, apenas salvamos no Firestore/localStorage
+            await saveDocument('usuarios', payload);
+        }
+
+        alert('Usuário salvo com sucesso!');        
+        userEditModal.style.display = 'none';        
+        loadAndRenderUsers();
+
+    } catch (error) {
         console.error('Erro ao salvar usuário:', error);
-        form.reset();
-        refreshUsers();
-      });
-  });
-
-  refreshUsers();
+        alert('Erro ao salvar usuário. Verifique o console para mais detalhes.');
+    }
 }

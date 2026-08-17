@@ -1,4 +1,5 @@
 import { loadCollection, saveDocument, updateDocument } from '../firebase-init.js';
+import { showToast } from '../utils/toast.js';
 
 const defaultPendencias = [
   {
@@ -183,12 +184,25 @@ export function initPendenciasModule() {
 
     const pendenciaId = target.dataset.pendenciaId;
     if (!pendenciaId) return;
+    try {
+      const pendenciaId = target.dataset.pendenciaId;
+      if (!pendenciaId) return;
 
     await updateDocument('pendencias', pendenciaId, { status: 'concluida' });
     
     // O listener do Firestore (se online) ou a atualização local já garantem
     // que a UI será atualizada na próxima chamada de `refresh`.
     refresh(); // Recarrega a lista para refletir a mudança.
+      await updateDocument('pendencias', pendenciaId, { status: 'concluida' });
+      showToast('Pendência marcada como concluída!', 'success');
+      refresh(); // Recarrega a lista para refletir a mudança.
+    } catch (error) {
+      console.error('Erro ao concluir pendência:', error);
+      showToast('Erro ao concluir pendência.', 'error');
+    } finally {
+      target.disabled = false;
+      target.textContent = 'Concluído';
+    }
   });
 
   if (form) {
@@ -222,6 +236,15 @@ export function initPendenciasModule() {
           form.reset();
           refresh();
         });
+      try {
+        await saveDocument('pendencias', payload);
+        showToast('Pendência salva com sucesso!', 'success');
+        form.reset();
+        refresh();
+      } catch (error) {
+        showToast('Erro ao salvar pendência.', 'error');
+        console.error('Erro ao salvar pendência:', error);
+      }
     });
   }
 

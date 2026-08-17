@@ -11,6 +11,7 @@ import { initChecklistModule } from './modules/checklist.js';
 import { initUsuariosModule } from './modules/usuarios.js';
 import { initPendenciasModule } from './modules/pendencias.js';
 import { saveDocument, loadCollection, initFirebase } from './firebase-init.js';
+import { setupSyncStatus } from './modules/syncStatus.js';
 
 const navItems = document.querySelectorAll('.nav-item');
 const allNavButtons = document.querySelectorAll('.nav-item, .nav-bottom-item');
@@ -35,6 +36,8 @@ const profileModal = document.getElementById('profileModal');
 const modulesModal = document.getElementById('modulesModal');
 const bottomNavItems = document.querySelectorAll('.nav-bottom-item');
 const closeProfileBtn = profileModal?.querySelector('.close-profile');
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
 const closeModulesBtn = modulesModal?.querySelector('.close-modal');
 
 // Dados do usuário logado
@@ -136,6 +139,67 @@ bottomNavItems.forEach((button) => {
   });
 });
 
+/**
+ * Lida com a busca em tempo real nos módulos do aplicativo.
+ * @param {Event} event - O evento de input do campo de busca.
+ */
+async function handleSearch(event) {
+  const searchTerm = event.target.value.trim().toLowerCase();
+
+  if (!searchResults) return;
+
+  if (searchTerm.length < 3) {
+    searchResults.innerHTML = '<p class="empty-state">Digite pelo menos 3 caracteres para buscar.</p>';
+    return;
+  }
+
+  searchResults.innerHTML = '<p class="loading">Buscando...</p>';
+
+  try {
+    // Carrega dados de todos os módulos relevantes em paralelo
+    const [reformas, vistorias, projetos, pendencias] = await Promise.all([
+      loadCollection('reformas'),
+      loadCollection('vistorias'),
+      loadCollection('projetos'),
+      loadCollection('pendencias'),
+    ]);
+
+    const allResults = [];
+
+    // Filtra e normaliza os resultados de cada coleção
+    reformas
+      .filter(item => item.titulo?.toLowerCase().includes(searchTerm) || item.obra?.toLowerCase().includes(searchTerm))
+      .forEach(item => allResults.push({ type: 'Reforma', text: item.titulo, details: `Obra: ${item.obra}`, view: 'reformas' }));
+
+    vistorias
+      .filter(item => item.titulo?.toLowerCase().includes(searchTerm) || item.obra?.toLowerCase().includes(searchTerm) || item.area?.toLowerCase().includes(searchTerm))
+      .forEach(item => allResults.push({ type: 'Vistoria', text: item.titulo, details: `Obra: ${item.obra} - Área: ${item.area}`, view: 'vistorias' }));
+
+    projetos
+      .filter(item => item.nome?.toLowerCase().includes(searchTerm) || item.obra?.toLowerCase().includes(searchTerm))
+      .forEach(item => allResults.push({ type: 'Projeto', text: item.nome, details: `Obra: ${item.obra}`, view: 'projetos' }));
+
+    pendencias
+      .filter(item => item.descricao?.toLowerCase().includes(searchTerm) || item.obra?.toLowerCase().includes(searchTerm))
+      .forEach(item => allResults.push({ type: 'Pendência', text: item.descricao, details: `Obra: ${item.obra} - Prioridade: ${item.prioridade}`, view: 'pendencias' }));
+
+    if (allResults.length === 0) {
+      searchResults.innerHTML = '<p class="empty-state">Nenhum resultado encontrado.</p>';
+    } else {
+      searchResults.innerHTML = allResults.map(result => `
+        <div class="search-result-item" data-view="${result.view}">
+          <span class="result-type">${result.type}</span>
+          <strong class="result-text">${result.text}</strong>
+          <small class="result-details">${result.details}</small>
+        </div>
+      `).join('');
+    }
+  } catch (error) {
+    console.error('Erro ao realizar a busca:', error);
+    searchResults.innerHTML = '<p class="error">Ocorreu um erro ao buscar. Tente novamente.</p>';
+  }
+}
+
 // PERFIL
 if (profileToggle) {
   profileToggle.addEventListener('click', (e) => {
@@ -192,6 +256,11 @@ if (logoutBtn) {
     profileModal.classList.add('hidden');
     activateView('dashboard');
     loginForm.reset();
+  });
+}
+
+if (searchInput) {
+  searchInput.addEventListener('input', handleSearch);
   });
 }
 
@@ -349,5 +418,6 @@ window.addEventListener('storage', () => {
   updateLoadedData();
 });
 
+setupSyncStatus();
 activateView('dashboard');
 updateWizardUI();
