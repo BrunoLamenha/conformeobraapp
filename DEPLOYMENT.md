@@ -202,16 +202,17 @@ Isso criará uma pasta `functions` no seu projeto com os arquivos `index.js` e `
 2. Substitua todo o conteúdo dele por este código:
 
 ```javascript
-// functions/index.js
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+// Cloud Function para criar/atualizar usuários e definir suas permissões (claims).
+// Apenas usuários autenticados com a claim 'role: "admin"' podem chamar esta função.
 exports.setUserClaims = functions
   .region("southamerica-east1") // Use a mesma região do seu Firestore
   .https.onCall(async (data, context) => {
-    // Verifica se o chamador é um administrador
+    // 1. Validação de Permissão: Garante que o chamador é um admin.
     if (context.auth.token.role !== "admin") {
       throw new functions.https.HttpsError(
         "permission-denied",
@@ -219,13 +220,22 @@ exports.setUserClaims = functions
       );
     }
 
+    // 2. Extração dos dados recebidos do app.
     const { email, companyId, role } = data;
-    let userRecord = await admin.auth().getUserByEmail(email).catch(() => null);
+    if (!email || !companyId || !role) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "A função deve ser chamada com 'email', 'companyId' e 'role'."
+      );
+    }
 
+    // 3. Busca ou cria o usuário no Firebase Authentication.
+    let userRecord = await admin.auth().getUserByEmail(email).catch(() => null);
     if (!userRecord) {
       userRecord = await admin.auth().createUser({ email });
     }
 
+    // 4. Define as permissões customizadas (claims) para o usuário.
     await admin.auth().setCustomUserClaims(userRecord.uid, { companyId, role });
 
     return { success: true, uid: userRecord.uid };
@@ -244,7 +254,65 @@ Aguarde a conclusão. Quando terminar, sua função estará ativa na nuvem do Fi
 
 ---
 
-## 📤 PASSO 4: Fazer Commit e Push para GitHub
+## ✅ PASSO 5: Criar o Primeiro Administrador
+
+A Cloud Function `setUserClaims` só pode ser chamada por um usuário que já é administrador. Para criar o primeiro administrador, você precisa fazer isso manualmente.
+
+### 5.1 Crie o Usuário no Firebase
+
+1.  No **Firebase Console**, vá para **Authentication > Users**.
+2.  Clique em **"Add user"**, preencha o e-mail e a senha.
+3.  Após criar, **copie o UID** do novo usuário.
+
+### 5.2 Crie um Script de Admin
+
+1.  Na raiz do seu projeto, crie um arquivo `set-admin.js`.
+2.  Cole o seguinte código nele:
+
+    ```javascript
+    // set-admin.js
+    const admin = require("firebase-admin");
+
+    // IMPORTANTE: Baixe este arquivo do seu Firebase Console
+    // Configurações do Projeto > Contas de serviço > Gerar nova chave privada
+    const serviceAccount = require("./serviceAccountKey.json"); 
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+
+    const uid = process.argv[2];
+    const companyId = process.argv[3];
+
+    if (!uid || !companyId) {
+      console.error("ERRO: Forneça o UID do usuário e o ID da empresa.");
+      console.log("Uso: node set-admin.js <UID_DO_USUARIO> <ID_DA_EMPRESA>");
+      process.exit(1);
+    }
+
+    // Define os custom claims para o usuário
+    admin.auth().setCustomUserClaims(uid, { role: "admin", companyId: companyId })
+      .then(() => {
+        console.log(`✅ Sucesso! O usuário ${uid} agora é um administrador da empresa ${companyId}.`);
+        process.exit(0);
+      });
+    ```
+
+### 5.3 Execute o Script
+
+1.  Baixe sua chave de conta de serviço do Firebase Console (`Configurações do Projeto > Contas de serviço`) e salve-a como `serviceAccountKey.json` na raiz do projeto. **NÃO FAÇA COMMIT DESTE ARQUIVO!**
+2.  Execute o script no terminal:
+
+    ```bash
+    # Formato: node set-admin.js <UID_DO_USUARIO> <ID_DA_EMPRESA>
+    node set-admin.js "UID_COPIADO_DO_FIREBASE" "construtora-alpha"
+    ```
+
+O usuário agora é um administrador. Ele precisa fazer logout e login novamente no app para que a permissão seja aplicada.
+
+---
+
+## 📤 PASSO 6: Fazer Commit e Push para GitHub
 
 ### 4.1 Inicializar Git (se ainda não fez)
 
@@ -276,7 +344,7 @@ git push -u origin main
 
 ---
 
-## 🌐 PASSO 5: Deploy no Firebase Hosting
+## 🌐 PASSO 7: Deploy no Firebase Hosting
 
 ### 5.1 Instalar Firebase CLI
 
@@ -316,7 +384,7 @@ Você verá uma URL como: `https://seu-projeto.firebaseapp.com`
 
 ---
 
-## 📱 PASSO 6: Instalar no Celular (PWA)
+## 📱 PASSO 8: Instalar no Celular (PWA)
 
 ### 6.1 Acessar no Celular
 
@@ -346,7 +414,7 @@ Você verá uma URL como: `https://seu-projeto.firebaseapp.com`
 
 ---
 
-## 🔄 PASSO 7: Usar o App com Sincronização
+## 🔄 PASSO 9: Usar o App com Sincronização
 
 ### Como Funciona:
 
@@ -365,7 +433,7 @@ Se você estiver logado na mesma obra/empresa:
 
 ---
 
-## 🧪 PASSO 8: Testar Sincronização
+## 🧪 PASSO 10: Testar Sincronização
 
 ### Teste 1: Mesmo Dispositivo
 
@@ -393,7 +461,7 @@ Se você estiver logado na mesma obra/empresa:
 
 ---
 
-## 📊 Regras de Negócio Sugeridas
+## 📊 Próximos Passos Sugeridos
 
 Para melhorar a segurança, você pode:
 
