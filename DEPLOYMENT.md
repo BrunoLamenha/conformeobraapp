@@ -102,14 +102,16 @@ No arquivo `public/index.html`, adicione no `<head>` (ANTES das outras tags scri
 
 ### 2.3 Atualizar firebase-init.js
 
-No arquivo `public/js/firebase-init.js`, na linha 16, importe do arquivo local:
+O arquivo `public/js/firebase-init.js` já está preparado para importar sua configuração local. Você não precisa alterá-lo.
 
-```javascript
-// Comentar (ou remover) a config inline
-// const firebaseConfig = { ... };
+Ele tentará carregar as credenciais do `firebase-config.local.js`. Se o arquivo não for encontrado, o app exibirá um alerta no console e continuará funcionando em modo offline.
 
-// E adicionar:
+A lógica implementada é similar a esta:
+
+```js
+// Dentro de firebase-init.js (exemplo conceitual)
 import { firebaseConfig } from './firebase-config.local.js';
+// ... inicializa o Firebase com o objeto importado.
 ```
 
 ---
@@ -126,30 +128,33 @@ import { firebaseConfig } from './firebase-config.local.js';
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Permitir leitura e escrita se o usuário está autenticado
-    // E está na mesma obra/empresa
-    match /obras/{obraId}/{document=**} {
-      allow read, write: if request.auth != null;
+
+    // Helper function to check if the user belongs to the company of the resource.
+    // It checks for a 'companyId' custom claim in the user's auth token.
+    function isUserInCompany(companyId) {
+      return request.auth != null && request.auth.token.companyId == companyId;
     }
-    
-    match /vistorias/{document=**} {
-      allow read, write: if request.auth != null;
+
+    // Secure rules for collections.
+    // Assumes each document in these collections has a 'companyId' field.
+    match /obras/{obraId} {
+      allow read, write: if isUserInCompany(resource.data.companyId);
     }
-    
-    match /relatorios/{document=**} {
-      allow read, write: if request.auth != null;
+    match /vistorias/{vistoriaId} {
+      allow read, write: if isUserInCompany(resource.data.companyId);
     }
-    
-    match /projetos/{document=**} {
-      allow read, write: if request.auth != null;
+    match /relatorios/{relatorioId} {
+      allow read, write: if isUserInCompany(resource.data.companyId);
     }
-    
-    match /pendencias/{document=**} {
-      allow read, write: if request.auth != null;
+    match /projetos/{projetoId} {
+      allow read, write: if isUserInCompany(resource.data.companyId);
     }
-    
-    match /users/{userId}/{document=**} {
+    match /pendencias/{pendenciaId} {
+      allow read, write: if isUserInCompany(resource.data.companyId);
+    }
+
+    // Users can only read/write their own data.
+    match /users/{userId} {
       allow read, write: if request.auth.uid == userId;
     }
   }
