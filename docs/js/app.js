@@ -10,7 +10,7 @@ import { initCalendarioModule } from './modules/calendario.js';
 import { initChecklistModule } from './modules/checklist.js';
 import { initUsuariosModule } from './modules/usuarios.js';
 import { initPendenciasModule } from './modules/pendencias.js';
-import { saveDocument, loadCollection, initFirebase } from './firebase-init.js';
+import { saveDocument, loadCollection, initFirebase, getAuth } from './firebase-init.js';
 import { setupSyncStatus } from './modules/syncStatus.js';
 
 const navItems = document.querySelectorAll('.nav-item');
@@ -24,12 +24,9 @@ const wizardForm = document.getElementById('wizardForm');
 const stepPanels = Array.from(document.querySelectorAll('.wizard-step-panel'));
 const stepIndicators = Array.from(document.querySelectorAll('.step'));
 const summaryBox = document.getElementById('wizardSummary');
-const installBtn = document.getElementById('installBtn');
 const loginForm = document.getElementById('loginForm');
 const loginScreen = document.getElementById('loginScreen');
 const appShell = document.getElementById('appShell');
-const headerUserName = document.getElementById('headerUserName');
-const headerCompanyName = document.getElementById('headerCompanyName');
 const userAvatar = document.getElementById('userAvatar');
 const profileToggle = document.getElementById('profileToggle');
 const profileModal = document.getElementById('profileModal');
@@ -38,6 +35,7 @@ const bottomNavItems = document.querySelectorAll('.nav-bottom-item');
 const closeProfileBtn = profileModal?.querySelector('.close-profile');
 const searchInput = document.getElementById('searchInput');
 const searchResults = document.getElementById('searchResults');
+const userAvatarText = document.getElementById('userAvatarText');
 const closeModulesBtn = modulesModal?.querySelector('.close-modal');
 
 // Dados do usuário logado
@@ -86,48 +84,31 @@ function activateView(viewId) {
   if (modulesModal) modulesModal.classList.add('hidden');
 }
 
-function handleLogin(event) {
-  event.preventDefault();
+export function updateUserInfo(user) {
+  const userName = user.displayName || user.email;
+  const companyName = user.company || 'Empresa Padrão'; // Você precisará buscar isso do Firestore
 
-  const companyName = document.getElementById('companySelect').value;
-  const userName = document.getElementById('userName').value.trim();
-  const password = document.getElementById('userPassword').value.trim();
-
-  if (!companyName || !userName || !password) {
-    alert('Selecione a empresa, informe o nome e a senha.');
-    return;
-  }
-
-  loginScreen.classList.add('hidden');
-  appShell.classList.remove('hidden');
-
-  const initials = userName
+  const initials = (user.displayName || user.email)
     .split(' ')
     .slice(0, 2)
     .map((word) => word.charAt(0).toUpperCase())
     .join('');
 
-  // Salvar dados do usuário
   currentUser.name = userName;
   currentUser.company = companyName;
 
-  // Salva o último usuário no localStorage para preenchimento automático
-  localStorage.setItem('conformeobras:lastUser', JSON.stringify({ company: companyName, name: userName }));
-
-  userAvatar.textContent = initials || 'U';
+  if (userAvatarText) userAvatarText.textContent = initials || 'U';
   
-  // Atualizar perfil modal
   if (document.getElementById('profileName')) {
     document.getElementById('profileName').textContent = userName;
     document.getElementById('profileCompany').textContent = companyName;
     document.getElementById('profileAvatarLarge').textContent = initials || 'U';
   }
 }
-
 /**
  * Carrega os dados do último usuário logado do localStorage e preenche o formulário.
  */
-function loadLastUser() {
+function prefillLoginForm() {
   const lastUserJson = localStorage.getItem('conformeobras:lastUser');
   if (lastUserJson) {
     try {
@@ -135,19 +116,18 @@ function loadLastUser() {
       if (lastUser.company) {
         document.getElementById('companySelect').value = lastUser.company;
       }
-      if (lastUser.name) {
-        document.getElementById('userName').value = lastUser.name;
+      if (lastUser.email) {
+        document.getElementById('userEmail').value = lastUser.email;
         // Foca no campo de senha para agilizar o login
         document.getElementById('userPassword').focus();
       }
     } catch (error) {
       console.error('Erro ao carregar dados do último usuário:', error);
-      localStorage.removeItem('conformeobras:lastUser'); // Limpa dados corrompidos
+      localStorage.removeItem('conformeobras:lastUser');
     }
   }
 }
 
-loginForm.addEventListener('submit', handleLogin);
 
 // NAVBAR INFERIOR
 bottomNavItems.forEach((button) => {
@@ -266,7 +246,7 @@ if (saveProfileBtn) {
 
     // Recalcula e atualiza a UI
     const initials = newName.split(' ').slice(0, 2).map(word => word.charAt(0).toUpperCase()).join('');
-    userAvatar.textContent = initials || 'U';
+    if (userAvatarText) userAvatarText.textContent = initials || 'U';
     document.getElementById('profileName').textContent = newName;
     document.getElementById('profileAvatarLarge').textContent = initials || 'U';
 
@@ -324,20 +304,9 @@ if (modulesModal) {
 }
 
 // LOGOUT
-const logoutBtn = document.getElementById('logoutBtn');
-if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
-    loginScreen.classList.remove('hidden');
-    appShell.classList.add('hidden');
-    profileModal.classList.add('hidden');
-    activateView('dashboard');
-    loginForm.reset();
-  });
-}
-
+// A lógica de logout foi movida para auth.js
 if (searchInput) {
   searchInput.addEventListener('input', handleSearch);
-  });
 }
 
 function updateWizardUI() {
@@ -422,20 +391,6 @@ nextStepButton.addEventListener('click', () => {
     });
 });
 
-window.addEventListener('beforeinstallprompt', (event) => {
-  event.preventDefault();
-  deferredPrompt = event;
-  installBtn.hidden = false;
-});
-
-installBtn.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  installBtn.hidden = true;
-});
-
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((error) => {
@@ -468,11 +423,15 @@ function updateLoadedData() {
   }
 }
 
-initFirebase();
-loadCollection('cadastros').then((items) => {
-  console.log('Cadastros salvos:', items);
-});
+export function loadInitialData(user) {
+  console.log("Carregando dados iniciais para o usuário:", user.uid);
+  // Aqui você pode carregar coleções do Firestore específicas do usuário/empresa
+  loadCollection('cadastros').then((items) => {
+    console.log('Cadastros salvos:', items);
+  });
+}
 
+initFirebase();
 initCadastroModule();
 initVistoriasModule();
 initRelatoriosModule();
@@ -495,6 +454,6 @@ window.addEventListener('storage', () => {
 });
 
 setupSyncStatus();
-loadLastUser();
+prefillLoginForm();
 activateView('dashboard');
 updateWizardUI();
