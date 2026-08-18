@@ -218,9 +218,14 @@ export function initReformasModule() {
 
         const checklistGerado = buildChecklistFromSelection(selection);
         const payload = {
-          titulo: `Reforma - ${formData.get('obra') || 'obra'}`,
-          obra: formData.get('obra') || 'Não informado',
-          responsavel: formData.get('responsavel') || 'Não informado',
+          empreendimentoId: formData.get('empreendimentoId'),
+          unidadeId: formData.get('unidadeId'),
+          // Para manter a compatibilidade com outras partes do app que usam 'obra'
+          obra: form.querySelector('#reformaFormEmpreendimentoSelect option:checked')?.textContent || 'Não informado',
+          titulo: `Reforma - ${form.querySelector('#reformaFormEmpreendimentoSelect option:checked')?.textContent || 'obra'}`,
+
+          responsavelId: formData.get('responsavelId'),
+          responsavel: form.querySelector('#reformaFormResponsavelSelect option:checked')?.textContent || 'Não informado',
           comodos: Object.entries(selection)
             .filter(([, item]) => item.enabled)
             .map(([roomKey, item]) => ({

@@ -152,21 +152,45 @@
 
               <div class="module-grid">
                 <div class="module-panel">
-                  <h3>Empresas</h3>
-                  <ul class="metric-list">
-                    <li><span>Construtora Alpha</span><strong>12</strong></li>
-                    <li><span>Obras Premium</span><strong>6</strong></li>
-                    <li><span>Urbaniza Norte</span><strong>4</strong></li>
+                  <h3>Empresas Cadastradas</h3>
+                  <ul id="companyList" class="metric-list">
+                    <li class="empty-state">Carregando empresas...</li>
                   </ul>
+                  <form id="companyForm" class="inspection-form" style="margin-top: 1.5rem;">
+                    <label>
+                      Nova Empresa
+                      <input type="text" name="companyName" placeholder="Nome da nova empresa" required />
+                    </label>
+                    <button type="submit" class="primary-btn">Adicionar Empresa</button>
+                  </form>
                 </div>
 
                 <div class="module-panel">
                   <h3>Empreendimentos</h3>
-                  <ul class="metric-list">
-                    <li><span>Residencial Sol</span><strong>Ativo</strong></li>
-                    <li><span>Centro Comercial</span><strong>Em obra</strong></li>
-                    <li><span>Parque Vista</span><strong>Planejamento</strong></li>
+                  <ul id="empreendimentosList" class="metric-list">
+                    <li class="empty-state">Nenhum empreendimento cadastrado.</li>
                   </ul>
+                  <button id="showEmpreendimentoFormBtn" class="primary-btn" style="margin-top: 1.5rem;">Novo Empreendimento</button>
+                </div>
+              </div>
+
+              <!-- Formulário de Empreendimento (inicialmente oculto) -->
+              <div id="empreendimentoFormContainer" class="module-panel hidden" style="margin-top: 2rem;">
+                <div class="panel-header">
+                  <h3>Cadastrar Novo Empreendimento</h3>
+                  <button id="closeEmpreendimentoFormBtn" class="close-btn" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
+                </div>
+                <form id="empreendimentoForm" class="inspection-form">
+                  <!-- ETAPA 1: DADOS GERAIS -->
+                  <div id="step1">
+                    <label>Nome do Empreendimento<input type="text" name="empreendimentoName" placeholder="Ex: Residencial Vista do Parque" required /></label>
+                    <label>Empresa Responsável<select name="companyId" id="empreendimentoCompanySelect" required><option value="">Selecione a empresa</option></select></label>
+                  </div>
+                  <!-- ETAPA 2: PAVIMENTOS (será gerado dinamicamente) -->
+                  <div id="step2" class="hidden"></div>
+                  <!-- ETAPA 3: UNIDADES (será gerado dinamicamente) -->
+                  <div id="step3" class="hidden"></div>
+                  <div class="form-navigation"><button type="button" id="empreendimentoFormNextBtn" class="primary-btn">Próximo</button></div>
                 </div>
               </div>
             </div>
@@ -303,6 +327,7 @@
               <div class="section-title">
                 <h2>Orçamentos</h2>
                 <button class="primary-btn">Novo orçamento</button>
+                <button id="showOrcamentoFormBtn" class="primary-btn">Novo Orçamento</button>
               </div>
               <div class="module-grid">
                 <div class="module-panel">
@@ -312,6 +337,19 @@
                     <li><span>Obra B</span><strong>R$ 24k</strong></li>
                     <li><span>Reforma C</span><strong>R$ 9k</strong></li>
                   </ul>
+
+              <div id="orcamentosListContainer" class="module-panel">
+                <h3>Orçamentos Cadastrados</h3>
+                <ul id="orcamentosList" class="metric-list">
+                  <li class="empty-state">Nenhum orçamento cadastrado.</li>
+                </ul>
+              </div>
+
+              <!-- Formulário de Orçamento (inicialmente oculto) -->
+              <div id="orcamentoFormContainer" class="module-panel hidden" style="margin-top: 2rem;">
+                <div class="panel-header">
+                  <h3>Cadastrar Novo Orçamento</h3>
+                  <button id="closeOrcamentoFormBtn" class="close-btn" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">×</button>
                 </div>
                 <div class="module-panel">
                   <h3>Status</h3>
@@ -320,6 +358,42 @@
                     <li>Em negociação</li>
                     <li>Concluído</li>
                   </ul>
+                <form id="orcamentoForm" class="inspection-form">
+                  <label>Nome do Orçamento<input type="text" name="orcamentoName" placeholder="Ex: Orçamento Inicial - Bloco A" required /></label>
+                  <label>Empreendimento<select name="empreendimentoId" id="orcamentoEmpreendimentoSelect" required><option value="">Selecione</option></select></label>
+                  
+                  <div class="panel-header" style="margin-top: 1.5rem;">
+                    <h4>Itens do Orçamento</h4>
+                    <div style="display: flex; gap: 10px;">
+                      <button type="button" id="loadTemplateBtn" class="secondary-btn">Carregar Template</button>
+                      <button type="button" id="addOrcamentoItemBtn" class="secondary-btn">Adicionar Item</button>
+                    </div>
+                  </div>
+                  <div id="orcamentoItensContainer" class="inspection-list">
+                    <!-- Itens do orçamento serão adicionados aqui -->
+                  </div>
+
+                  <div class="orcamento-summary">
+                    <h4>Total do Orçamento</h4>
+                    <strong id="orcamentoTotalValue">R$ 0,00</strong>
+                  </div>
+
+                  <label>Status
+                    <select name="status">
+                      <option value="elaboracao">Em Elaboração</option>
+                      <option value="aprovado">Aprovado</option>
+                      <option value="reprovado">Reprovado</option>
+                    </select>
+                  </label>
+                  <button type="submit" class="primary-btn">Salvar Orçamento</button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div id="reformasView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
                 </div>
               </div>
             </div>
@@ -336,12 +410,22 @@
                   <h3>Cadastro da reforma</h3>
                   <form id="reformaForm" class="inspection-form">
                     <label>
-                      Obra
-                      <input type="text" name="obra" placeholder="Ex: Residencial Sol" required />
+                      Empreendimento
+                      <select id="reformaFormEmpreendimentoSelect" name="empreendimentoId" required>
+                        <option value="">Selecione o empreendimento</option>
+                      </select>
+                    </label>
+                    <label>
+                      Unidade
+                      <select id="reformaFormUnidadeSelect" name="unidadeId" required disabled>
+                        <option value="">Selecione primeiro o empreendimento</option>
+                      </select>
                     </label>
                     <label>
                       Responsável
-                      <input type="text" name="responsavel" placeholder="Ex: Coord. Obra" required />
+                      <select id="reformaFormResponsavelSelect" name="responsavelId" required>
+                        <option value="">Selecione o responsável</option>
+                      </select>
                     </label>
                     <label>
                       Prazo previsto
@@ -472,11 +556,9 @@
                     </label>
                     <label>
                       Empresa
-                      <select name="empresa" required>
+                      <select name="empresa" id="userFormCompanySelect" required>
                         <option value="">Selecione</option>
-                        <option value="Construtora Alpha">Construtora Alpha</option>
-                        <option value="Obras Premium">Obras Premium</option>
-                        <option value="Urbaniza Norte">Urbaniza Norte</option>
+                        <!-- Options will be populated by JavaScript -->
                       </select>
                     </label>
                     <label>
@@ -546,11 +628,27 @@
                     </label>
                     <label>
                       Obra
-                      <input type="text" name="obra" placeholder="Ex: Torre Central" required />
+                      <select id="pendenciaFormObraSelect" name="obra" required>
+                        <option value="">Selecione a obra/empresa</option>
+                        <!-- Options will be populated by JavaScript -->
+                      </select>
                     </label>
                     <label>
                       Responsável
-                      <input type="text" name="responsavel" placeholder="Ex: Eng. Silva" required />
+                      <select id="pendenciaFormResponsavelSelect" name="responsavelId" required>
+                        <option value="">Selecione o responsável</option>
+                      </select>
+                    </label>
+                    <label>
+                      Serviço/Disciplina
+                      <select name="disciplina" required>
+                        <option value="">Selecione a disciplina</option>
+                        <option value="hidraulica">Hidráulica</option>
+                        <option value="eletrica">Elétrica</option>
+                        <option value="revestimento">Revestimento</option>
+                        <option value="pintura">Pintura</option>
+                        <option value="acabamento">Acabamento</option>
+                      </select>
                     </label>
                     <label>
                       Prioridade
@@ -601,6 +699,46 @@
                 <div class="module-panel">
                   <h3>Conformidade</h3>
                   <ul id="pendenciasSummary" class="metric-list"></ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MANAGER DASHBOARD VIEW -->
+          <div id="managerDashboardView" class="view">
+            <div class="module-shell">
+              <div class="section-title">
+                <h2>Dashboard Gerencial</h2>
+                <button id="refreshManagerDashboard" class="secondary-btn">Atualizar Dados</button>
+              </div>
+
+              <div class="dashboard-filters">
+                <label>
+                  Empreendimento
+                  <select id="managerDashboardEmpreendimentoFilter">
+                    <option value="all">Todos</option>
+                  </select>
+                </label>
+                <label>
+                  Serviço/Disciplina
+                  <select id="managerDashboardServiceFilter">
+                    <option value="all">Todos</option>
+                    <!-- Preenchido dinamicamente -->
+                  </select>
+                </label>
+                <label>
+                  Responsável
+                  <select id="managerDashboardPersonFilter">
+                    <option value="all">Todos</option>
+                    <!-- Preenchido dinamicamente -->
+                  </select>
+                </label>
+              </div>
+
+              <div id="managerDashboardContent" class="dashboard-content-grid">
+                <!-- KPIs e Gráficos serão renderizados aqui pelo JavaScript -->
+                <div class="loading-state">
+                  <p>Carregando dados gerenciais...</p>
                 </div>
               </div>
             </div>
@@ -750,6 +888,10 @@
             <button class="module-tile" data-view="cadastro" title="Cadastros gerais">
               <span class="icon">📋</span>
               <span>Cadastro</span>
+            </button>
+            <button class="module-tile accent" data-view="managerDashboard" title="Visão geral para gestores">
+              <span class="icon">📈</span>
+              <span>Dashboard Gerencial</span>
             </button>
           </div>
         </div>

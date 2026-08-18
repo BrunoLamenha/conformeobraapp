@@ -129,34 +129,45 @@ import { firebaseConfig } from './firebase-config.local.js';
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the user belongs to the company of the resource.
-    // It checks for a 'companyId' custom claim in the user's auth token.
+    
+    // Helper function to check if the user is an admin.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.role == 'admin';
+    }
+    
+    // Helper function to check if a regular user belongs to the company of the resource.
     function isUserInCompany(companyId) {
       return request.auth != null && request.auth.token.companyId == companyId;
     }
 
-    // Secure rules for collections.
-    // Assumes each document in these collections has a 'companyId' field.
-    match /obras/{obraId} {
-      allow read, write: if isUserInCompany(resource.data.companyId);
+    // Generic rule for company-scoped data.
+    // Admins have full access. Regular users can only access their own company's data.
+    function canAccessCompanyData(docData) {
+      return isAdmin() || isUserInCompany(docData.companyId);
     }
-    match /vistorias/{vistoriaId} {
-      allow read, write: if isUserInCompany(resource.data.companyId);
-    }
-    match /relatorios/{relatorioId} {
-      allow read, write: if isUserInCompany(resource.data.companyId);
-    }
-    match /projetos/{projetoId} {
-      allow read, write: if isUserInCompany(resource.data.companyId);
-    }
-    match /pendencias/{pendenciaId} {
-      allow read, write: if isUserInCompany(resource.data.companyId);
+
+    // Apply the generic rule to all relevant collections.
+    match /reformas/{docId}      { allow read, write: if canAccessCompanyData(resource.data); }
+    match /vistorias/{docId}      { allow read, write: if canAccessCompanyData(resource.data); }
+    match /relatorios/{docId}     { allow read, write: if canAccessCompanyData(resource.data); }
+    match /projetos/{docId}       { allow read, write: if canAccessCompanyData(resource.data); }
+    match /pendencias/{docId}     { allow read, write: if canAccessCompanyData(resource.data); }
+    match /orcamentos/{docId}     { allow read, write: if canAccessCompanyData(resource.data); }
+    match /empreendimentos/{docId}{ allow read, write: if canAccessCompanyData(resource.data); }
+
+    // Special rules for 'companies' collection.
+    // Any authenticated user can read the list of companies (to populate dropdowns).
+    // Only admins can create, update, or delete companies.
+    match /companies/{companyId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // Users can only read/write their own data.
     match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      // An admin can read/write any user's profile.
+      // A regular user can only read/write their own.
+      allow read, write: if isAdmin() || request.auth.uid == userId;
     }
   }
 }

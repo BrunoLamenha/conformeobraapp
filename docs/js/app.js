@@ -10,6 +10,8 @@ import { initCalendarioModule } from './modules/calendario.js';
 import { initChecklistModule } from './modules/checklist.js';
 import { initUsuariosModule } from './modules/usuarios.js';
 import { initPendenciasModule } from './modules/pendencias.js';
+import { initEmpreendimentosModule } from './modules/empreendimentos.js';
+import { initManagerDashboardModule } from './modules/managerDashboard.js';
 import { saveDocument, loadCollection, initFirebase, getAuth } from './firebase-init.js';
 import { setupSyncStatus } from './modules/syncStatus.js';
 
@@ -74,6 +76,7 @@ function activateView(viewId) {
       cadastro: 'Cadastro',
       search: 'Pesquisa',
       modules: 'Módulos',
+      managerDashboard: 'Dashboard Gerencial',
       settings: 'Configurações'
     };
     pageTitle.querySelector('h1').textContent = viewName[viewId] || 'Painel';
@@ -84,24 +87,40 @@ function activateView(viewId) {
   if (modulesModal) modulesModal.classList.add('hidden');
 }
 
-export function updateUserInfo(user) {
+export async function updateUserInfo(user) {
   const userName = user.displayName || user.email;
-  const companyName = user.company || 'Empresa Padrão'; // Você precisará buscar isso do Firestore
+  
+  // Pega os custom claims (role, companyId) do token do usuário
+  const token = await user.getIdTokenResult();
+  const claims = token.claims || {};
+
+  let companyName = 'Empresa Padrão';
+  // Se o usuário tem um companyId, busca o nome da empresa.
+  if (claims.companyId) {
+    try {
+      const companies = await loadCollection('companies', { ignoreCompanyFilter: true });
+      const userCompany = companies.find(c => c.id === claims.companyId);
+      if (userCompany) companyName = userCompany.name;
+    } catch (e) { console.error("Erro ao buscar nome da empresa:", e); }
+  }
 
   const initials = (user.displayName || user.email)
     .split(' ')
     .slice(0, 2)
     .map((word) => word.charAt(0).toUpperCase())
     .join('');
-
+  
+  // Atualiza o objeto global do usuário com dados seguros do token
   currentUser.name = userName;
-  currentUser.company = companyName;
+  currentUser.companyId = claims.companyId;
+  currentUser.role = claims.role || 'operacional';
 
   if (userAvatarText) userAvatarText.textContent = initials || 'U';
   
   if (document.getElementById('profileName')) {
     document.getElementById('profileName').textContent = userName;
     document.getElementById('profileCompany').textContent = companyName;
+    document.getElementById('profileRole').textContent = claims.role || 'Operacional';
     document.getElementById('profileAvatarLarge').textContent = initials || 'U';
   }
 }
@@ -444,6 +463,8 @@ initCalendarioModule();
 initChecklistModule();
 initUsuariosModule();
 initPendenciasModule();
+initEmpreendimentosModule();
+initManagerDashboardModule();
 
 // Carregar dados para compartilhamento
 updateLoadedData();

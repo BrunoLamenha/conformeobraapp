@@ -1,33 +1,6 @@
 import { loadCollection, saveDocument, updateDocument } from '../firebase-init.js';
 import { showToast } from '../utils/toast.js';
 
-const defaultPendencias = [
-  {
-    descricao: 'Ajuste de fissura na laje do 3º andar',
-    obra: 'Torre Central',
-    responsavel: 'Eng. Silva',
-    prioridade: 'alta',
-    prazo: '03/09/2026',
-    status: 'aberta'
-  },
-  {
-    descricao: 'Completar instalação elétrica do bloco B',
-    obra: 'Residencial Sol',
-    responsavel: 'Elétrica JF',
-    prioridade: 'media',
-    prazo: '05/09/2026',
-    status: 'em-andamento'
-  },
-  {
-    descricao: 'Revisar acabamento de parede na suíte',
-    obra: 'Parque Vista',
-    responsavel: 'Coord. Obra',
-    prioridade: 'baixa',
-    prazo: '07/09/2026',
-    status: 'concluida'
-  }
-];
-
 function getPriorityClass(priority) {
   const map = {
     alta: 'priority-high',
@@ -80,29 +53,20 @@ function renderPendencias(items, filters = { obra: 'all', prioridade: 'all' }) {
 
   if (!list || !summary) return;
 
-  const normalized = items.length ? items : defaultPendencias;
+  const normalized = items.length ? items : [];
   const filtered = normalized.filter((item) => {
     const obraMatch = filters.obra === 'all' || item.obra === filters.obra;
     const priorityMatch = filters.prioridade === 'all' || item.prioridade === filters.prioridade;
     return obraMatch && priorityMatch;
   });
 
-  if (filterObra) {
-    const obras = [...new Set(normalized.map((item) => item.obra).filter(Boolean))];
-    filterObra.innerHTML = '<option value="all">Todas</option>';
-    obras.forEach((obra) => {
-      const option = document.createElement('option');
-      option.value = obra;
-      option.textContent = obra;
-      if (filters.obra === obra) option.selected = true;
-      filterObra.appendChild(option);
-    });
-  }
-
   const abertas = filtered.filter((item) => item.status === 'aberta').length;
   const emAndamento = filtered.filter((item) => item.status === 'em-andamento').length;
   const concluidas = filtered.filter((item) => item.status === 'concluida').length;
 
+  if (filtered.length === 0) {
+    list.innerHTML = '<li class="empty-state">Nenhuma pendência encontrada.</li>';
+  } else {
   list.innerHTML = filtered
     .map(
       (item) => `
@@ -124,6 +88,7 @@ function renderPendencias(items, filters = { obra: 'all', prioridade: 'all' }) {
       `
     )
     .join('');
+  }
 
   summary.innerHTML = `
     <li><span>Abertas</span><strong>${abertas}</strong></li>
@@ -146,16 +111,24 @@ export function initPendenciasModule() {
   if (!card) return;
   card.dataset.module = 'pendencias';
 
-  const refresh = () => {
-    loadCollection('pendencias')
-      .then((items) => renderPendencias(items, {
-        obra: filterObra ? filterObra.value : 'all',
-        prioridade: filterPrioridade ? filterPrioridade.value : 'all'
-      }))
-      .catch(() => renderPendencias(defaultPendencias, {
-        obra: filterObra ? filterObra.value : 'all',
-        prioridade: filterPrioridade ? filterPrioridade.value : 'all'
-      }));
+  const refresh = async () => {
+    try {
+      const { getAuth } = await import('../firebase-init.js');
+      const { where } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js");
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        renderPendencias([]); // Renderiza lista vazia se não houver usuário
+        return;
+      }
+
+      const items = await loadCollection('pendencias');
+      renderPendencias(items, { obra: filterObra?.value || 'all', prioridade: filterPrioridade?.value || 'all' });
+    } catch (error) {
+      console.error("Erro ao carregar pendências:", error);
+      renderPendencias([]);
+    }
   };
 
   if (button) {
@@ -210,7 +183,9 @@ export function initPendenciasModule() {
         id: `pend-${Date.now()}`,
         descricao: formData.get('descricao') || 'Pendência sem descrição',
         obra: formData.get('obra') || 'Não informado',
-        responsavel: formData.get('responsavel') || 'Não informado',
+        responsavelId: formData.get('responsavelId'),
+        responsavel: form.querySelector('#pendenciaFormResponsavelSelect option:checked')?.textContent || 'Não informado',
+        disciplina: formData.get('disciplina'), // Salva a disciplina
         prioridade: formData.get('prioridade') || 'media',
         prazo: formData.get('prazo') || 'Não definido',
         status: formData.get('status') || 'aberta',

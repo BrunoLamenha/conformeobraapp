@@ -257,16 +257,36 @@ export async function updateDocument(collectionName, docId, payload) {
   }
 }
 
-export async function loadCollection(collectionName) {
+export async function loadCollection(collectionName, options = {}) {
   const db = initFirebase();
+  const { queryConstraints = [], ignoreCompanyFilter = false } = options;
 
   if (!db) {
-    // Fallback direto para localStorage se o Firebase não estiver inicializado
-    return loadFromLocalStorage(collectionName);
+    const allItems = loadFromLocalStorage(collectionName);
+    return allItems;
   }
 
   try {
-    const snapshot = await db.collection(collectionName).get();
+    const { collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js");
+    const { getAuth } = await import('./firebase-init.js');
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    let finalConstraints = [...queryConstraints];
+
+    if (user && !ignoreCompanyFilter) {
+      const token = await user.getIdTokenResult();
+      const claims = token.claims || {};
+      // Se o usuário não for admin, aplica o filtro de empresa.
+      if (claims.role !== 'admin' && claims.companyId) {
+        finalConstraints.push(where("companyId", "==", claims.companyId));
+      }
+    }
+    
+    let collectionRef = collection(db, collectionName);
+    let q = query(collectionRef, ...finalConstraints);
+
+    const snapshot = await getDocs(q);
     const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     // Também salvar no localStorage como backup para uso offline futuro
     const key = `conformeobras:${collectionName}`;
