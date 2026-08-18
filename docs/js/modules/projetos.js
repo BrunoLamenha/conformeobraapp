@@ -1,5 +1,5 @@
 import { loadCollection, saveDocument } from '../firebase-init.js';
-import { showToast } from '../utils/toast.js';
+import { showToast } from '../utils/toast.js'; // Caminho padronizado
 
 // Variáveis globais para o módulo
 /**

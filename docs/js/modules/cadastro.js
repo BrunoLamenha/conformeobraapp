@@ -1,5 +1,5 @@
 import { loadCollection, saveDocument } from '../firebase-init.js';
-import { showToast } from '../utils/toast.js';
+import { showToast } from '../utils/toast.js'; // Caminho já estava correto, mantido para consistência.
 
 /**
  * Renderiza a lista de empresas na view de Cadastros.
