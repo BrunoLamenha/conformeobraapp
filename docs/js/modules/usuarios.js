@@ -1,4 +1,4 @@
-import { loadCollection, getSupabase } from '../supabase-init.js';
+import { loadCollection, getSupabase, updateDocument } from '../supabase-init.js';
 import { showToast } from '../utils/toast.js';
 
 /**
@@ -22,18 +22,18 @@ export function populateUserSelect(users, selectElementId) {
 }
 
 async function loadAndRenderUsers() {
-  const userList = document.getElementById('userList');
-  if (!userList) return;
-  userList.innerHTML = '<li>Carregando usuários...</li>';
+  const usersListContainer = document.getElementById('users-list-container');
+  if (!usersListContainer) return;
+  usersListContainer.innerHTML = '<p>Carregando usuários...</p>';
 
   try { 
     // No Supabase, os dados de perfil estão na tabela 'profiles'.
     const users = await loadCollection('profiles');
     renderUsersList(users);
 
-    // Popula os selects de responsável nos outros módulos
-    populateUserSelect(users, 'reformaFormResponsavelSelect');
-    populateUserSelect(users, 'pendenciaFormResponsavelSelect');
+    // TODO: Se necessário, popule selects em outros módulos. Ex:
+    // populateUserSelect(users, 'reformaFormResponsavelSelect');
+    // populateUserSelect(users, 'pendenciaFormResponsavelSelect');
 
   } catch (error) {
     console.error("Erro ao carregar usuários: ", error);
@@ -42,82 +42,156 @@ async function loadAndRenderUsers() {
 }
 
 function renderUsersList(users) {
-  const userList = document.getElementById('userList');
-  if (!userList) return;
+  const usersListContainer = document.getElementById('users-list-container');
+  if (!usersListContainer) return;
 
   if (!users || users.length === 0) {
-    userList.innerHTML = '<li>Nenhum usuário encontrado.</li>';
+    usersListContainer.innerHTML = '<p>Nenhum usuário encontrado.</p>';
     return;
   }
 
-  userList.innerHTML = users.map(user => `
-    <li data-user-id="${user.id}">
-      <div>
-        <strong>${user.full_name || 'Nome não definido'}</strong>
-        <small>${user.email || 'sem e-mail'}</small>
+  usersListContainer.innerHTML = users.map(user => `
+    <div class="list-item-card" data-user-id="${user.id}">
+      <div class="card-content">
+        <h4>${user.full_name || 'Nome não definido'}</h4>
+        <p>${user.email}</p>
+        <p>Empresa: ${user.company_id || 'N/A'} | Papel: ${user.role || 'user'}</p>
       </div>
-      <small>${user.role || 'user'}</small>
-    </li>
+      <div class="card-actions">
+        <button class="edit-user-btn">Editar</button>
+      </div>
+    </div>
   `).join('');
+
+  document.querySelectorAll('.edit-user-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const userId = e.target.closest('.list-item-card').dataset.userId;
+      openUserModalForEdit(userId);
+    });
+  });
 }
 
 export function initUsuariosModule() {
-  const userForm = document.getElementById('userForm');
-  if (!userForm) return;
+  const userEditModal = document.getElementById('user-edit-modal');
+  const userEditForm = document.getElementById('user-edit-form');
+  const addNewUserButton = document.getElementById('add-new-user-button');
 
-  userForm.addEventListener('submit', handleSaveUser);
+  if (!userEditModal || !userEditForm || !addNewUserButton) return;
+
+  addNewUserButton.addEventListener('click', openUserModalForCreate);
+  userEditModal.querySelector('.close-modal-button').addEventListener('click', () => userEditModal.style.display = 'none');
+  userEditForm.addEventListener('submit', handleSaveUser);
 
   loadAndRenderUsers();
 }
 
+function openUserModalForCreate() {
+  const userEditModal = document.getElementById('user-edit-modal');
+  const userModalTitle = document.getElementById('user-modal-title');
+  const userEditForm = document.getElementById('user-edit-form');
+  
+  userModalTitle.textContent = 'Novo Usuário';
+  userEditForm.reset();
+  document.getElementById('user-id-input').value = '';
+  document.getElementById('user-email-input').readOnly = false;
+  userEditModal.style.display = 'block';
+}
+
+async function openUserModalForEdit(userId) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  try {
+    const { data: userData, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+    if (!userData) {
+      showToast('Usuário não encontrado.', 'error');
+      return;
+    }
+
+    const userEditModal = document.getElementById('user-edit-modal');
+    const userModalTitle = document.getElementById('user-modal-title');
+
+    userModalTitle.textContent = 'Editar Usuário';
+    document.getElementById('user-id-input').value = userId;
+    document.getElementById('user-email-input').value = userData.email;
+    document.getElementById('user-email-input').readOnly = true;
+    document.getElementById('user-name-input').value = userData.full_name || '';
+    document.getElementById('user-company-input').value = userData.company_id || '';
+    document.getElementById('user-role-select').value = userData.role || 'user';
+    userEditModal.style.display = 'block';
+
+  } catch (error) {
+    console.error('Erro ao buscar usuário para edição:', error);
+    showToast('Não foi possível carregar os dados do usuário.', 'error');
+  }
+}
+
 async function handleSaveUser(e) {
   e.preventDefault();
-  const userForm = e.target;
-  const submitButton = userForm.querySelector('button[type="submit"]');
+  const userEditForm = e.target;
+  const submitButton = userEditForm.querySelector('button[type="submit"]');
   submitButton.disabled = true;
   submitButton.textContent = 'Salvando...';
 
-  const formData = new FormData(userForm);
+  const formData = new FormData(userEditForm);
+  const userId = formData.get('user-id');
 
   const payload = {
-    email: formData.get('email'),
-    companyId: formData.get('empresa'),
-    role: formData.get('perfil'),
-    full_name: formData.get('nome'),
+    email: formData.get('user-email'),
+    company_id: formData.get('user-company'),
+    role: formData.get('user-role'),
+    full_name: formData.get('user-name'),
   };
 
   try {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client não está disponível.");
 
-    // Correção de Segurança: Chama a Edge Function para convidar o usuário.
-    // A chave de admin nunca é exposta no cliente.
-    const { data, error } = await supabase.functions.invoke('invite-user', {
-      body: {
-        email: payload.email,
-        options: {
-          data: {
-            full_name: payload.full_name,
-            company_id: payload.companyId,
-            role: payload.role,
+    if (userId) {
+      // --- MODO DE ATUALIZAÇÃO ---
+      const updatePayload = {
+        full_name: payload.full_name,
+        company_id: payload.company_id,
+        role: payload.role,
+      };
+      await updateDocument('profiles', userId, updatePayload);
+      showToast('Usuário atualizado com sucesso!', 'success');
+    } else {
+      // --- MODO DE CRIAÇÃO (CONVITE) ---
+      const { error } = await supabase.functions.invoke('invite-user', {
+        body: {
+          email: payload.email,
+          options: {
+            data: {
+              full_name: payload.full_name,
+              company_id: payload.company_id,
+              role: payload.role,
+            }
           }
-        }
-      },
-    });
+        },
+      });
 
-    if (error) throw error;
+      if (error) throw error;
+      showToast(`Convite enviado para ${payload.email}!`, 'success');
+    }
 
-    showToast(`Convite enviado para ${payload.email}!`, 'success');
-    userForm.reset();
+    document.getElementById('user-edit-modal').style.display = 'none';
+    userEditForm.reset();
     loadAndRenderUsers();
   } catch (error) {
     console.error('Erro ao salvar usuário:', error);
     const errorMessage = error.message.includes('permission')
       ? 'Você não tem permissão para convidar usuários.'
-      : 'Erro ao criar usuário. Verifique o console para detalhes.';
+      : 'Erro ao salvar usuário. Verifique o console para detalhes.';
     showToast(errorMessage, 'error');
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = 'Salvar usuário';
+    submitButton.textContent = 'Salvar';
   }
 }

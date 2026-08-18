@@ -1,24 +1,19 @@
 const CACHE_NAME = 'conformeobra-cache-v1';
 const urlsToCache = [
   '/',
-  '/index.html',
-  '/manifest.json',
-  '/css/global.css',
-  '/css/wizard.css',
-  '/js/app.js',
-  '/js/auth.js',
-  '/js/whatsapp-share.js',
-  '/js/supabase-init.js',
-  // Otimização: Adiciona os módulos ao cache para carregamentos futuros mais rápidos.
+  'index.html',
+  'manifest.json',
+  'css/global.css',
+  'css/wizard.css',
+  'js/app.js',
+  'js/auth.js',
+  'js/whatsapp-share.js',
+  'js/supabase-init.js', // Assumindo que este arquivo existe
   '/js/modules/cadastro.js',
-  '/js/modules/checklist.js',
-  '/js/modules/cronograma.js',
   '/js/modules/dashboards.js',
   '/js/modules/empreendimentos.js',
-  '/js/modules/managerDashboard.js',
   '/js/modules/orcamentos.js',
   '/js/modules/pendencias.js',
-  '/js/modules/pessoas.js',
   '/js/modules/projetos.js',
   '/js/modules/reformas.js',
   '/js/modules/relatorios.js',
@@ -58,8 +53,9 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Isso previne o erro "Request method 'POST' is unsupported" com as APIs do Supabase.
-  if (event.request.method !== 'GET' || event.request.url.includes('.supabase.co')) {
+  // Deixa as requisições que não são GET (POST, PUT, DELETE, etc.) passarem direto para a rede.
+  // Isso é crucial para que as operações de escrita com Supabase funcionem online.
+  if (event.request.method !== 'GET') {
     return; // Deixa o navegador lidar com a requisição normalmente.
   }
 
@@ -73,13 +69,7 @@ self.addEventListener('fetch', event => {
  
         // Se não encontrar no cache, busca na rede.
         return fetch(event.request).then(networkResponse => {
-          // Verifica se a resposta é válida e se a requisição é GET antes de cachear.
-          // Isso evita o erro com requisições POST.
-          if (
-            !networkResponse || networkResponse.status !== 200 ||
-            networkResponse.type !== 'basic' ||
-            event.request.method !== 'GET'
-          ) {
+          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
             return networkResponse; // Retorna a resposta da rede sem cachear.
           }
  
