@@ -2,8 +2,6 @@ import { loadCollection, saveDocument, updateDocument } from '../firebase-init.j
 import { showToast } from '../utils/toast.js';
 import { isHoliday } from '../data/holidays.js';
 import { populateEmpreendimentoSelect } from './empreendimentos.js'; // Importa a função para popular empreendimentos
-
-import { populateEmpreendimentoSelect } from './empreendimentos.js'; // Importa a função para popular empreendimentos
  
 let currentOrcamento = null;
 let allCronogramas = []; // Cache for all saved cronogramas
@@ -542,7 +540,6 @@ export function initCalendarioModule() {
       if (currentCalendarView === 'month') {
         currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
       } else if (currentCalendarView === 'week') {
-        currentCalendarDate.setDate(currentCalendarDate.getDate() + 7);
         currentCalendarDate.setDate(currentCalendarDate.getDate() + 7); // Corrected from document = document.getElementById
       } else {
         currentCalendarDate.setDate(currentCalendarDate.getDate() + 1);
