@@ -2,6 +2,7 @@ import { loadCollection, saveDocument, updateDocument } from '../firebase-init.j
 import { showToast } from '../utils/toast.js';
 import { isHoliday } from '../data/holidays.js';
 
+import { populateEmpreendimentoSelect } from './empreendimentos.js'; // Importa a função para popular empreendimentos
 let currentOrcamento = null;
 let allCronogramas = []; // Cache for all saved cronogramas
 let currentCalendarDate = new Date(); // Tracks the month/year being displayed
@@ -456,6 +457,7 @@ export function initCalendarioModule() {
   const calendarCronogramaSelect = document.getElementById('calendarCronogramaSelect');
   const prevPeriodBtn = document.getElementById('prevPeriodBtn');
   const nextPeriodBtn = document.getElementById('nextPeriodBtn');
+  const calendarEmpreendimentoFilter = document.getElementById('calendarEmpreendimentoFilter');
   const viewMonthBtn = document.getElementById('calViewMonth');
   const viewWeekBtn = document.getElementById('calViewWeek');
   const viewDayBtn = document.getElementById('calViewDay');
@@ -463,6 +465,14 @@ export function initCalendarioModule() {
   const saveTaskBtn = document.getElementById('saveTaskDetailsBtn');
   const calendarContainer = document.getElementById('calendarContainer');
   const viewControls = [viewMonthBtn, viewWeekBtn, viewDayBtn];
+
+  // Popula o filtro de empreendimentos e adiciona listener
+  if (calendarEmpreendimentoFilter) {
+    loadCollection('empreendimentos').then(empreendimentos => {
+      populateEmpreendimentoSelect(empreendimentos, 'calendarEmpreendimentoFilter');
+    });
+    calendarEmpreendimentoFilter.addEventListener('change', populateCronogramaSelect); // Recarrega cronogramas ao mudar empreendimento
+  }
 
   if (calendarCronogramaSelect) {
     calendarCronogramaSelect.addEventListener('change', (e) => {
@@ -552,5 +562,47 @@ export function initCalendarioModule() {
     });
   }
 
-  populateCronogramaSelect(); // Initial load of cronogramas and calendar
+  /**
+   * Populates the cronograma select dropdown, filtered by empreendimento.
+   */
+  async function populateCronogramaSelect() {
+    const selectElement = document.getElementById('calendarCronogramaSelect');
+    if (!selectElement) return;
+
+    const selectedEmpreendimentoId = calendarEmpreendimentoFilter.value;
+    allCronogramas = await loadCollection('cronogramas'); // Load all cronogramas
+
+    // Filter cronogramas by selected empreendimento
+    const filteredCronogramas = selectedEmpreendimentoId === 'all'
+      ? allCronogramas
+      : allCronogramas.filter(c => c.empreendimentoId === selectedEmpreendimentoId);
+
+    // Clear existing options, keep the first "Selecione um cronograma"
+    while (selectElement.options.length > 1) {
+      selectElement.remove(1);
+    }
+
+    filteredCronogramas.forEach(cronograma => {
+      const option = document.createElement('option');
+      option.value = cronograma.id;
+      option.textContent = cronograma.name;
+      selectElement.appendChild(option);
+    });
+
+    // If there's a selected cronograma, try to pre-select it
+    if (selectedCronogramaId && filteredCronogramas.some(c => c.id === selectedCronogramaId)) {
+      selectElement.value = selectedCronogramaId;
+    } else if (filteredCronogramas.length > 0) {
+      // Otherwise, select the first one by default
+      selectedCronogramaId = filteredCronogramas[0].id;
+      selectElement.value = selectedCronogramaId;
+    } else {
+      selectedCronogramaId = null; // No cronograma selecionado
+    }
+
+    renderCalendar(); // Render calendar with the selected cronograma
+  }
+
+  // Initial load of cronogramas and calendar
+  populateCronogramaSelect();
 }
