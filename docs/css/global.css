@@ -1,16 +1,18 @@
 :root {
-  --bg: #eff3f7;
-  --bg-strong: #112131;
+  /* Melhoria Visual: Paleta de cores refinada e nova fonte */
+  --bg: #f8fafc; /* Fundo principal mais claro (cinza-azulado) */
+  --bg-strong: #0f172a; /* Fundo de destaque (azul-ardósia escuro) */
   --panel: #ffffff;
-  --panel-alt: #e5ecf4;
-  --line: #d7e0eb;
-  --text: #122234;
-  --muted: #587188;
-  --primary: #1d3557;      /* Azul escuro */
-  --secondary: #4d7ea8;    /* Azul médio */
-  --success: #1f7a5e;      /* Verde */
-  --warning: #c9822a;      /* Laranja */
-  --shadow: 0 18px 40px rgba(17, 33, 49, 0.08);
+  --panel-alt: #f1f5f9; /* Alternativa para painéis (cinza mais claro) */
+  --line: #e2e8f0; /* Linhas e bordas mais suaves */
+  --text: #0f172a; /* Texto principal mais escuro para contraste */
+  --muted: #64748b; /* Texto secundário (cinza-ardósia) */
+  --primary: #2563eb;      /* Azul vibrante para ações principais */
+  --secondary: #475569;    /* Cinza-azulado para ações secundárias */
+  --success: #16a34a;      /* Verde */
+  --warning: #f97316;      /* Laranja */
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); /* Sombra mais sutil */
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 * {
@@ -20,8 +22,8 @@
 html, body {
   margin: 0;
   min-height: 100%;
-  font-family: Arial, Helvetica, sans-serif;
-  background: linear-gradient(135deg, #eef4ff 0%, #f8fafc 100%);
+  font-family: var(--font-family-sans); /* Aplica a nova fonte */
+  background-color: var(--bg);
   color: var(--text);
 }
 
