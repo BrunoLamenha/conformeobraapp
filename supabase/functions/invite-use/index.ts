@@ -1,46 +1,35 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Setup type definitions for built-in Supabase Runtime APIs
-import "@supabase/functions-js/edge-runtime.d.ts";
-import { withSupabase } from "@supabase/server";
+serve(async (req) => {
+  // 1. Validação de CORS e método
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" } });
+  }
 
-console.log("Hello from Functions!");
+  try {
+    // 2. Cria um cliente Supabase com privilégios de administrador
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
 
-// This endpoint uses 'publishable' | 'secret' access, apiKey is required.
-// Use publishable for Client-facing, key-validated endpoints
-// Use secret for Server-to-server, internal calls
-export default {
-  fetch: withSupabase({ auth: ["publishable", "secret"] }, async (req, ctx) => {
-    // Called by another service with a secret key
-    // ctx.supabaseAdmin bypasses RLS — use for privileged operations
-    /*
-    if (ctx.authMode === "secret") {
-      const { user_id } = await req.json();
-      const { data } = await ctx.supabaseAdmin.auth.admin.getUserById(user_id);
+    // 3. Extrai os dados do corpo da requisição
+    const { email, options } = await req.json();
+    if (!email) throw new Error("O e-mail é obrigatório.");
 
-      return Response.json({
-        email: data?.user?.email,
-      });
-    }
-    */
+    // 4. Usa o cliente admin para convidar o usuário
+    const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, options);
+    if (error) throw error;
 
-    const { name } = await req.json();
-
-    return Response.json({
-      message: `Hello ${name}!`,
+    return new Response(JSON.stringify(data), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      status: 200,
     });
-  }),
-};
-
-/* To invoke locally:
-
-  1. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-  2. Make an HTTP request:
-
-  curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/invite-use' \
-    --header 'apiKey: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH' \
-    --data '{"name":"Functions"}'
-
-*/
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      status: 400,
+    });
+  }
+});

@@ -12,6 +12,7 @@ const logoutBtn = document.getElementById('logoutBtn');
 const showSignUpLink = document.getElementById('showSignUp');
 const loginButton = document.querySelector('.login-button');
 const signupLinkContainer = document.querySelector('.signup-link');
+const fullNameField = document.getElementById('fullNameField'); // Novo campo
 
 let isSignUpMode = false;
 
@@ -27,16 +28,17 @@ async function handleEmailLogin(event) {
 
   const email = document.getElementById('userEmail').value;
   const password = document.getElementById('userPassword').value;
+  const fullName = document.getElementById('userFullName')?.value; // Pega o nome
   const supabase = getSupabase();
 
   try {
     if (isSignUpMode) {
       // Modo de Cadastro
-      // Adiciona o nome completo aos metadados para o gatilho do BD usar.
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: 'Novo Usuário' } } // Nome padrão
+        // Adiciona o nome completo aos metadados para o gatilho do BD usar.
+        options: { data: { full_name: fullName || 'Novo Usuário' } }
       });
       if (error) throw error;
       showToast('Usuário cadastrado com sucesso! Faça o login.', 'success');
@@ -99,12 +101,14 @@ function toggleSignUpMode(isSigningUp) {
   isSignUpMode = isSigningUp;
   if (isSignUpMode) {
     loginButton.textContent = 'Cadastrar';
+    fullNameField.classList.remove('hidden'); // Mostra o campo de nome
     signupLinkContainer.innerHTML = '<p>Já tem uma conta? <a href="#" id="showLogin">Faça o login</a></p>';
     document.querySelector('#showLogin').addEventListener('click', (e) => {
       e.preventDefault();
       toggleSignUpMode(false);
     });
   } else {
+    fullNameField.classList.add('hidden'); // Esconde o campo de nome
     loginButton.textContent = 'Entrar';
     signupLinkContainer.innerHTML = '<p>Não tem uma conta? <a href="#" id="showSignUp">Cadastre-se</a></p>';
     document.querySelector('#showSignUp').addEventListener('click', (e) => {

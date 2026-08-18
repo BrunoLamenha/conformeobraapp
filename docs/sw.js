@@ -39,8 +39,25 @@ self.addEventListener('install', event => {
   );
 });
 
+self.addEventListener('activate', event => {
+  console.log('Service worker ativando...');
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          // Se o nome do cache não for o atual, ele é deletado.
+          // Para forçar a atualização, basta mudar a versão em CACHE_NAME.
+          if (cacheName !== CACHE_NAME) {
+            console.log('Deletando cache antigo:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
 self.addEventListener('fetch', event => {
-  // Ignora requisições que não são GET e requisições para a API do Firebase.
   // Isso previne o erro "Request method 'POST' is unsupported" com as APIs do Supabase.
   if (event.request.method !== 'GET' || event.request.url.includes('.supabase.co')) {
     return; // Deixa o navegador lidar com a requisição normalmente.
