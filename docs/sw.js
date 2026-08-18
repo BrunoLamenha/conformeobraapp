@@ -1,33 +1,56 @@
-const CACHE_NAME = 'conforme-obras-v1';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/css/global.css', '/css/wizard.css', '/js/app.js'];
+const CACHE_NAME = 'conformeobra-cache-v1';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/css/global.css',
+  '/css/wizard.css',
+  '/js/app.js',
+  '/js/auth.js',
+  '/js/firebase-init.js',
+  '/js/whatsapp-share.js',
+  '/assets/logo/logo.png',
+  '/assets/icons/icon-192.png',
+  '/assets/icons/icon-512.png'
+  // Adicione outros arquivos estáticos importantes aqui
+];
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
+      })
   );
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
+self.addEventListener('fetch', event => {
+  // Ignora requisições que não são GET (como POST para o Firestore)
+  if (event.request.method !== 'GET') {
+    return;
+  }
 
-self.addEventListener('fetch', (event) => {
+  // Ignora requisições para o Firebase para evitar problemas de cache com dados dinâmicos
+  if (event.request.url.includes('firestore.googleapis.com')) {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      }).catch(() => caches.match('/index.html'));
-    })
+    caches.match(event.request)
+      .then(response => {
+        // Se encontrar no cache, retorna a resposta do cache
+        if (response) {
+          return response;
+        }
+
+        // Se não, busca na rede, retorna e armazena no cache para uso futuro
+        return fetch(event.request).then(
+          networkResponse => {
+            // Não é necessário clonar e colocar no cache aqui para uma estratégia simples
+            return networkResponse;
+          }
+        );
+      })
   );
 });
