@@ -23,9 +23,10 @@ exports.setUserClaims = functions
         );
       }
 
-      let userRecord = 
-      {await admin.auth().getUserByEmail(email).catch(() => null);
-      }
+      let userRecord = await admin.auth()
+  .getUserByEmail(email).catch(() => null);
+
+      
       if (!userRecord) {
         userRecord = await admin.auth().createUser({email});
       }
