@@ -103,7 +103,7 @@ export function getFunctions() {
 
 export function getAuth() {
   if (!firebaseAuth && isFirebaseConfigured()) {
-    firebaseAuth = window.firebase.auth();
+    initFirebase();
   }
   return firebaseAuth;
 }

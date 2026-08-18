@@ -22,6 +22,7 @@ const searchResults = document.getElementById('searchResults');
 const userAvatarText = document.getElementById('userAvatarText');
 const closeModulesBtn = modulesModal?.querySelector('.close-modal');
 
+let searchDebounceTimer;
 let modulesInitialized = false;
 
 // Dados do usuário logado
@@ -132,6 +133,18 @@ bottomNavItems.forEach((button) => {
  * @param {Event} event - O evento de input do campo de busca.
  */
 async function handleSearch(event) {
+  // Otimização: Usa um debounce para evitar buscas a cada tecla digitada.
+  // A busca só é acionada 300ms após o usuário parar de digitar.
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    performSearch(event.target.value);
+  }, 300);
+}
+
+/**
+ * Executa a lógica de busca após o debounce.
+ */
+async function performSearch(searchTerm) {
   const searchTerm = event.target.value.trim().toLowerCase();
 
   if (!searchResults) return;

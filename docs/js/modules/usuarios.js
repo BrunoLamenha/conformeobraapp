@@ -1,4 +1,4 @@
-import { loadCollection, saveDocument } from '../firebase-init.js';
+import { loadCollection, saveDocument, getFunctions } from '../firebase-init.js';
 import { showToast } from '../utils/toast.js'; // Caminho padronizado
 
 /**
@@ -86,20 +86,29 @@ async function handleSaveUser(e) {
   };
 
   try {
-    // A lógica de criação/edição de usuário agora é feita por uma Cloud Function
-    // que é chamada a partir do front-end.
-    // Por simplicidade, vamos apenas salvar na coleção 'users'
-    // A Cloud Function `setUserClaims` deve ser chamada para criar o usuário no Auth
-    // e definir as permissões.
-    await saveDocument('users', payload);
+    // 1. Chama a Cloud Function para criar o usuário no Auth e definir suas permissões.
+    const functions = getFunctions();
+    const setUserClaims = functions.httpsCallable('setUserClaims');
+    const result = await setUserClaims(payload);
 
-    showToast(`Usuário ${payload.name} salvo com sucesso!`, 'success');
+    if (!result.data.success) {
+      throw new Error(result.data.message || 'A função na nuvem retornou um erro.');
+    }
+
+    // 2. Salva os detalhes do usuário na coleção 'users' do Firestore.
+    // O UID vem da resposta da Cloud Function.
+    const userDocPayload = { ...payload, uid: result.data.uid };
+    await saveDocument('users', userDocPayload);
+
+    showToast(`Usuário ${payload.name} criado com sucesso!`, 'success');
     userForm.reset();
     loadAndRenderUsers();
-
   } catch (error) {
     console.error('Erro ao salvar usuário:', error);
-    showToast('Erro ao salvar usuário.', 'error');
+    const errorMessage = error.message.includes('permission-denied')
+      ? 'Você não tem permissão para criar usuários.'
+      : 'Erro ao criar usuário. Verifique o console para detalhes.';
+    showToast(errorMessage, 'error');
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = 'Salvar usuário';
