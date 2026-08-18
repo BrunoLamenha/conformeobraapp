@@ -729,6 +729,18 @@
                   </select>
                 </label>
               </div>
+              
+              <div class="module-panel" style="margin-top: 1.5rem;">
+                <h3>Previsão do Tempo para a Obra</h3>
+                <div id="weatherDisplay" class="weather-display">
+                  <p class="loading">Carregando previsão...</p>
+                  <!-- Weather data will be rendered here -->
+                </div>
+                <label style="margin-top: 1rem;">
+                  Cidade para Previsão
+                  <input type="text" id="weatherCityInput" placeholder="Ex: São Paulo, BR" value="São Paulo, BR" />
+                </label>
+              </div>
 
               <div id="managerDashboardContent" class="dashboard-content-grid">
                 <!-- KPIs e Gráficos serão renderizados aqui pelo JavaScript -->

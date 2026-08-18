@@ -1709,3 +1709,49 @@ h1 {
 .calendar-task.progress-complete {
   background-color: var(--success); /* Verde escuro para completo */
 }
+
+/* --- Weather Display Styles --- */
+.weather-display {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background-color: var(--panel-alt);
+}
+
+.weather-current {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.weather-icon {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+
+.weather-temp {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.weather-description {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.weather-forecast {
+  display: flex;
+  justify-content: space-around;
+  gap: 10px;
+}
+
+.forecast-item {
+  text-align: center;
+  font-size: 0.8rem;
+}
