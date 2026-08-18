@@ -70,6 +70,7 @@ export function initFirebase() {
   if (!firebaseDb) {
     firebaseDb = window.firebase.firestore();
     if (window.firebase.functions) functions = window.firebase.functions();
+    firebaseAuth = window.firebase.auth(); // Inicializa Firebase Auth aqui
     
     // Habilitar persistência offline
     try {
@@ -93,6 +94,9 @@ export function initFirebase() {
 }
 
 export function getFunctions() {
+  if (!functions && isFirebaseConfigured()) {
+    initFirebase(); // Garante que o Firebase Functions seja inicializado
+  }
   return functions;
 }
 
@@ -270,26 +274,28 @@ export async function loadCollection(collectionName, options = {}) {
   }
 
   try {
-    const { collection, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js");
-    const { getAuth } = await import('./firebase-init.js');
-    const auth = getAuth();
+    // Usar a instância de auth inicializada globalmente
+    const auth = getAuth(); 
     const user = auth.currentUser;
 
-    let finalConstraints = [...queryConstraints];
+    let collectionRef = db.collection(collectionName);
 
     if (user && !ignoreCompanyFilter) {
       const token = await user.getIdTokenResult();
       const claims = token.claims || {};
       // Se o usuário não for admin, aplica o filtro de empresa.
       if (claims.role !== 'admin' && claims.companyId) {
-        finalConstraints.push(where("companyId", "==", claims.companyId));
+        collectionRef = collectionRef.where("companyId", "==", claims.companyId);
       }
     }
     
-    let collectionRef = collection(db, collectionName);
-    let q = query(collectionRef, ...finalConstraints);
+    // Aplicar restrições de consulta adicionais
+    queryConstraints.forEach(constraint => {
+      // Assumindo que as restrições são para 'where' clauses. Adapte se houver 'orderBy', 'limit', etc.
+      collectionRef = collectionRef.where(constraint[0], constraint[1], constraint[2]);
+    });
 
-    const snapshot = await getDocs(q);
+    const snapshot = await collectionRef.get();
     const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     // Também salvar no localStorage como backup para uso offline futuro
     const key = `conformeobras:${collectionName}`;
