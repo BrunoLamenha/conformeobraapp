@@ -1,4 +1,4 @@
-import { getAuth, isFirebaseConfigured } from './firebase-init.js';
+import { getSupabase, isSupabaseConfigured } from './supabase-init.js';
 import { updateUserInfo, loadInitialData } from './app.js';
 import { showToast } from './utils/toast.js'; // Caminho padronizado
 
@@ -20,25 +20,27 @@ let isSignUpMode = false;
  */
 async function handleEmailLogin(event) {
   event.preventDefault();
-  if (!isFirebaseConfigured()) {
-    showToast('Firebase não configurado. Login indisponível.', 'error');
+  if (!isSupabaseConfigured()) {
+    showToast('Supabase não configurado. Login indisponível.', 'error');
     return;
   }
 
   const email = document.getElementById('userEmail').value;
   const password = document.getElementById('userPassword').value;
-  const auth = getAuth();
+  const supabase = getSupabase();
 
   try {
     if (isSignUpMode) {
       // Modo de Cadastro
-      await auth.createUserWithEmailAndPassword(email, password);
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
       showToast('Usuário cadastrado com sucesso! Faça o login.', 'success');
       // Volta para o modo de login
       toggleSignUpMode(false);
     } else {
       // Modo de Login
-      await auth.signInWithEmailAndPassword(email, password);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
       // O onAuthStateChanged vai cuidar de mostrar o app.
     }
   } catch (error) {
@@ -51,20 +53,22 @@ async function handleEmailLogin(event) {
  * Lida com o login usando a conta do Google.
  */
 async function handleGoogleLogin() {
-  if (!isFirebaseConfigured()) {
-    showToast('Firebase não configurado. Login indisponível.', 'error');
+  if (!isSupabaseConfigured()) {
+    showToast('Supabase não configurado. Login indisponível.', 'error');
     return;
   }
-  const auth = getAuth();
-  const provider = new window.firebase.auth.GoogleAuthProvider();
+  const supabase = getSupabase();
 
   try {
-    // Melhoria: Usar signInWithRedirect para uma melhor experiência em mobile e para evitar avisos de COOP.
-    // O usuário será redirecionado para a página do Google e depois voltará para o app.
-    await auth.signInWithRedirect(provider);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    });
+    if (error) throw error;
+    // O usuário será redirecionado para a página do Google e depois voltará.
+    // O onAuthStateChange cuidará do resto.
   } catch (error) {
     console.error('Erro no login com Google:', error);
-    showToast(`Erro ao iniciar login com Google: ${error.message}`, 'error');
+    showToast(`Erro ao logar com Google: ${error.message}`, 'error');
   }
 }
 
@@ -72,10 +76,10 @@ async function handleGoogleLogin() {
  * Lida com o logout do usuário.
  */
 async function handleLogout() {
-  if (!isFirebaseConfigured()) return;
-  const auth = getAuth();
+  if (!isSupabaseConfigured()) return;
   try {
-    await auth.signOut();
+    const { error } = await getSupabase().auth.signOut();
+    if (error) throw error;
     // O onAuthStateChanged vai cuidar de mostrar a tela de login.
   } catch (error) {
     console.error('Erro ao fazer logout:', error);
@@ -109,19 +113,17 @@ function toggleSignUpMode(isSigningUp) {
  * Observa mudanças no estado de autenticação do usuário.
  */
 export function setupAuth() {
-  // Melhoria: Processa o resultado do login após o redirecionamento.
-  // Isso é necessário para que o signInWithRedirect funcione.
-  processRedirectResult();
+  if (!isSupabaseConfigured()) return;
 
-  const auth = getAuth();
-  auth.onAuthStateChanged(async (user) => {
-    if (user) {
+  const supabase = getSupabase();
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    const user = session?.user;
+    if (event === 'SIGNED_IN' && user) {
       // Usuário está logado.
       // 1. Esconde a tela de login e mostra o overlay de carregamento.
       loginScreen.classList.add('hidden');
       loadingOverlay.classList.remove('hidden');
       appShell.classList.add('hidden'); // Garante que o app principal está escondido.
-
       // 2. Carrega as informações do usuário e os dados iniciais.
       await updateUserInfo(user);
       await loadInitialData(user);
@@ -130,7 +132,7 @@ export function setupAuth() {
       loadingOverlay.classList.add('hidden');
       appShell.classList.remove('hidden');
 
-    } else {
+    } else if (event === 'SIGNED_OUT') {
       // Usuário não está logado. Mostra a tela de login.
       loginScreen.classList.remove('hidden');
       appShell.classList.add('hidden');
@@ -139,25 +141,6 @@ export function setupAuth() {
   });
 }
 
-/**
- * Processa o resultado do login após o redirecionamento do Google.
- * Deve ser chamado antes de onAuthStateChanged.
- */
-async function processRedirectResult() {
-  const auth = getAuth();
-  try {
-    // getRedirectResult só retorna um resultado na página para a qual o usuário foi redirecionado.
-    // Em outras cargas de página, retorna null.
-    const result = await auth.getRedirectResult();
-    if (result.user) {
-      // O usuário acabou de fazer login ou se cadastrar.
-      showToast(`Bem-vindo, ${result.user.displayName}!`, 'success');
-    }
-  } catch (error) {
-    console.error('Erro ao processar o redirecionamento do login:', error);
-    showToast(`Erro no login: ${error.message}`, 'error');
-  }
-}
 // Adiciona os event listeners aos elementos da UI
 if (loginForm) {
   loginForm.addEventListener('submit', handleEmailLogin);

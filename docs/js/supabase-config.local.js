@@ -1,0 +1,2 @@
+https://pqqoeoeeiggifcgwssol.supabase.co
+sb_publishable_yzxNL1ljnOA_43jr-XB75w_jeozlgHs

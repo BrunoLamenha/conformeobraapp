@@ -1,4 +1,4 @@
-import { loadCollection, initFirebase } from './firebase-init.js';
+import { initSupabase, getSupabase } from './supabase-init.js';
 import { setupSyncStatus } from './modules/syncStatus.js';
 import { setupAuth } from './auth.js';
 
@@ -74,23 +74,28 @@ function activateView(viewId) {
 }
 
 export async function updateUserInfo(user) {
-  const userName = user.displayName || user.email;
+  const supabase = getSupabase();
+  if (!supabase) return;
   
-  // Pega os custom claims (role, companyId) do token do usuário
-  const token = await user.getIdTokenResult();
-  const claims = token.claims || {};
+  // No Supabase, os metadados do usuário (como nome) e as permissões (role, companyId)
+  // são geralmente armazenados em uma tabela 'profiles'.
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('full_name, company_id, role, company:companies(name)')
+    .eq('id', user.id)
+    .single();
 
-  let companyName = 'Empresa Padrão';
-  // Se o usuário tem um companyId, busca o nome da empresa.
-  if (claims.companyId) {
-    try {
-      const companies = await loadCollection('companies', { ignoreCompanyFilter: true });
-      const userCompany = companies.find(c => c.id === claims.companyId);
-      if (userCompany) companyName = userCompany.name;
-    } catch (e) { console.error("Erro ao buscar nome da empresa:", e); }
+  if (error) {
+    console.error("Erro ao buscar perfil do usuário:", error.message);
   }
 
-  const initials = (user.displayName || user.email)
+  const userName = profile?.full_name || user.email;
+  const companyName = profile?.company?.name || 'Empresa Padrão';
+  const role = profile?.role || 'operacional';
+  const companyId = profile?.company_id;
+
+  // O `user.user_metadata.full_name` pode ser um fallback se você o definir no cadastro.
+  const initials = (userName)
     .split(' ')
     .slice(0, 2)
     .map((word) => word.charAt(0).toUpperCase())
@@ -98,15 +103,15 @@ export async function updateUserInfo(user) {
   
   // Atualiza o objeto global do usuário com dados seguros do token
   currentUser.name = userName;
-  currentUser.companyId = claims.companyId;
-  currentUser.role = claims.role || 'operacional';
+  currentUser.companyId = companyId;
+  currentUser.role = role;
 
   if (userAvatarText) userAvatarText.textContent = initials || 'U';
   
   if (document.getElementById('profileName')) {
     document.getElementById('profileName').textContent = userName;
     document.getElementById('profileCompany').textContent = companyName;
-    document.getElementById('profileRole').textContent = claims.role || 'Operacional';
+    document.getElementById('profileRole').textContent = role;
     document.getElementById('profileAvatarLarge').textContent = initials || 'U';
   }
 }
@@ -448,7 +453,7 @@ export async function loadInitialData(user) {
 }
 
 function main() {
-  initFirebase();
+  initSupabase();
   setupAuth();
   setupSyncStatus();
   activateView('dashboard');

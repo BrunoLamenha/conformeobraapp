@@ -24,9 +24,8 @@ exports.setUserClaims = functions
       }
 
       let userRecord = await admin.auth()
-  .getUserByEmail(email).catch(() => null);
+          .getUserByEmail(email).catch(() => null);
 
-      
       if (!userRecord) {
         userRecord = await admin.auth().createUser({email});
       }
