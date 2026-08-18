@@ -1,134 +1,107 @@
-// docs/js/modules/usuarios.js
-
-import { initFirebase, loadCollection, updateDocument, saveDocument } from '../firebase-init.js';
+import { loadCollection, saveDocument } from '../firebase-init.js';
 import { showToast } from '../utils/toast.js';
 
-let userEditModal;
-let userModalTitle;
-let userEditForm;
-let usersListContainer;
-let addNewUserButton;
+/**
+ * Popula um elemento <select> com os usuários carregados.
+ * @param {Array<Object>} users - A lista de usuários.
+ * @param {string} selectElementId - O ID do elemento <select> a ser populado.
+ */
+export function populateUserSelect(users, selectElementId) {
+  const selectElement = document.getElementById(selectElementId);
+  if (!selectElement) return;
 
-export function initUsuariosModule() {
-    userEditModal = document.getElementById('userFormModal'); // Corrigido para o ID do modal no HTML
-    if (!userEditModal) return; // Se o modal não existe, o módulo não pode funcionar
+  // Limpa opções existentes, exceto a primeira ("Selecione")
+  while (selectElement.options.length > 1) {
+    selectElement.remove(1);
+  }
 
-    userModalTitle = userEditModal.querySelector('.modal-header h2');
-    userEditForm = document.getElementById('userForm');
-    usersListContainer = document.getElementById('userList');
-    addNewUserButton = document.querySelector('[data-trigger-user-form]');
-
-    if (addNewUserButton) {
-        addNewUserButton.addEventListener('click', openUserModalForCreate);
-    }
-    userEditModal.querySelector('.close-modal').addEventListener('click', () => userEditModal.style.display = 'none');
-    userEditForm.addEventListener('submit', handleSaveUser);
-
-    loadAndRenderUsers();
+  users.forEach(user => {
+    const option = new Option(user.name, user.uid); // Usa o nome como texto e UID como valor
+    selectElement.appendChild(option);
+  });
 }
 
 async function loadAndRenderUsers() {
-    if (!usersListContainer) return;
-    usersListContainer.innerHTML = '<li>Carregando usuários...</li>';
+  const userList = document.getElementById('userList');
+  if (!userList) return;
+  userList.innerHTML = '<li>Carregando usuários...</li>';
 
-    try {
-        // A função loadCollection já tem fallback para localStorage
-        const users = await loadCollection('usuarios');
-        renderUsersList(users);
-    } catch (error) {
-        console.error("Erro ao carregar usuários: ", error);
-        usersListContainer.innerHTML = '<li class="error">Não foi possível carregar os usuários.</li>';
-    }
+  try {
+    const users = await loadCollection('users');
+    renderUsersList(users);
+
+    // Popula os selects de responsável nos outros módulos
+    populateUserSelect(users, 'reformaFormResponsavelSelect');
+    populateUserSelect(users, 'pendenciaFormResponsavelSelect');
+
+  } catch (error) {
+    console.error("Erro ao carregar usuários: ", error);
+    userList.innerHTML = '<li class="error">Não foi possível carregar os usuários.</li>';
+  }
 }
 
 function renderUsersList(users) {
-    if (!usersListContainer) return;
+  const userList = document.getElementById('userList');
+  if (!userList) return;
 
-    if (!users || users.length === 0) {
-        usersListContainer.innerHTML = '<li>Nenhum usuário encontrado.</li>';
-        return;
-    }
+  if (!users || users.length === 0) {
+    userList.innerHTML = '<li>Nenhum usuário encontrado.</li>';
+    return;
+  }
 
-    usersListContainer.innerHTML = users.map(user => `
-        <li data-user-id="${user.id}">
-            <span>${user.nome || 'Nome não definido'} (${user.email || 'sem e-mail'})</span>
-            <small>${user.empresa || 'N/A'} - ${user.perfil || 'user'}</small>
-            <button class="tertiary-btn edit-user-btn">Editar</button>
-        </li>
-    `).join('');
-
-    document.querySelectorAll('.edit-user-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const userId = e.target.closest('li').dataset.userId;
-            openUserModalForEdit(userId);
-        });
-    });
+  userList.innerHTML = users.map(user => `
+    <li data-user-id="${user.id}">
+      <div>
+        <strong>${user.name || 'Nome não definido'}</strong>
+        <small>${user.email || 'sem e-mail'}</small>
+      </div>
+      <small>${user.companyName || 'N/A'} - ${user.role || 'user'}</small>
+    </li>
+  `).join('');
 }
 
-function openUserModalForCreate() {
-    if (!userEditModal) return;
-    userModalTitle.textContent = 'Cadastrar Novo Usuário';
-    userEditForm.reset();
-    userEditForm.dataset.userId = ''; // Limpa o ID do usuário
-    userEditForm.querySelector('input[name="email"]').readOnly = false;
-    userEditModal.style.display = 'block';
-}
+export function initUsuariosModule() {
+  const userForm = document.getElementById('userForm');
+  if (!userForm) return;
 
-async function openUserModalForEdit(userId) {
-    if (!userEditModal) return;
-    const users = await loadCollection('usuarios');
-    const userData = users.find(u => u.id === userId);
+  userForm.addEventListener('submit', handleSaveUser);
 
-    if (userData) {
-        userModalTitle.textContent = 'Editar Usuário';
-        userEditForm.dataset.userId = userId;
-        userEditForm.querySelector('input[name="nome"]').value = userData.nome || '';
-        userEditForm.querySelector('select[name="empresa"]').value = userData.empresa || '';
-        const emailInput = userEditForm.querySelector('input[name="email"]');
-        emailInput.value = userData.email || '';
-        emailInput.readOnly = true; // Não permite editar email
-        userEditForm.querySelector('select[name="perfil"]').value = userData.perfil || 'operacional';
-        userEditModal.style.display = 'block';
-    }
+  loadAndRenderUsers();
 }
 
 async function handleSaveUser(e) {
-    e.preventDefault();
-    const submitButton = userEditForm.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    submitButton.textContent = 'Salvando...';
+  e.preventDefault();
+  const userForm = e.target;
+  const submitButton = userForm.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  submitButton.textContent = 'Salvando...';
 
-    const userId = userEditForm.dataset.userId;
-    const formData = new FormData(userEditForm);
+  const formData = new FormData(userForm);
 
-    const payload = {
-        nome: formData.get('nome'),
-        empresa: formData.get('empresa'),
-        email: formData.get('email'),
-        perfil: formData.get('perfil'),
-    };
+  const payload = {
+    name: formData.get('nome'),
+    companyId: formData.get('empresa'),
+    email: formData.get('email'),
+    role: formData.get('perfil'),
+  };
 
-    try {
-        const action = userId ? 'atualizado' : 'salvo';
-        if (userId) {
-            // Editando um usuário existente
-            await updateDocument('usuarios', userId, payload);
-        } else {
-            // Criando um novo usuário
-            // Idealmente, uma Cloud Function criaria o usuário no Firebase Auth.
-            // Por enquanto, apenas salvamos no Firestore/localStorage.
-            await saveDocument('usuarios', payload);
-        }
+  try {
+    // A lógica de criação/edição de usuário agora é feita por uma Cloud Function
+    // que é chamada a partir do front-end.
+    // Por simplicidade, vamos apenas salvar na coleção 'users'
+    // A Cloud Function `setUserClaims` deve ser chamada para criar o usuário no Auth
+    // e definir as permissões.
+    await saveDocument('users', payload);
 
-        showToast(`Usuário ${action} com sucesso!`, 'success');
-        userEditModal.style.display = 'none';        
-        loadAndRenderUsers();
+    showToast(`Usuário ${payload.name} salvo com sucesso!`, 'success');
+    userForm.reset();
+    loadAndRenderUsers();
 
-    } catch (error) {
-        console.error('Erro ao salvar usuário:', error);
-        showToast('Erro ao salvar usuário.', 'error');
-    } finally {
-        submitButton.disabled = false;
-        submitButton.textContent = 'Salvar usuário';
-    }
+  } catch (error) {
+    console.error('Erro ao salvar usuário:', error);
+    showToast('Erro ao salvar usuário.', 'error');
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Salvar usuário';
+  }
 }

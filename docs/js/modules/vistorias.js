@@ -1,44 +1,17 @@
 import { loadCollection, saveDocument } from '../firebase-init.js';
 import { showToast } from '../utils/toast.js';
+import { populateEmpreendimentoSelect } from './empreendimentos.js';
+import { populateUserSelect } from './usuarios.js';
+import { conferenceChecklists } from '../data/checklist-templates.js';
 
-const defaultVistorias = [
-  {
-    titulo: 'Fundação e subsolo',
-    obra: 'Torre Central',
-    area: 'Fundação',
-    responsavel: 'Eng. Silva',
-    status: 'ok',
-    observacoes: 'Sem anomalias visíveis.',
-    pendencias: 'Nenhuma.',
-    fotos: []
-  },
-  {
-    titulo: 'Estrutura em concreto',
-    obra: 'Torre Central',
-    area: 'Pilar 4',
-    responsavel: 'Eng. Silva',
-    status: 'alerta',
-    observacoes: 'Ajuste de fissuras em pilar 4.',
-    pendencias: 'Fissuras localizadas.',
-    fotos: []
-  },
-  {
-    titulo: 'Instalação elétrica',
-    obra: 'Torre Central',
-    area: '1º andar',
-    responsavel: 'Eng. Silva',
-    status: 'pendente',
-    observacoes: 'Verificar aterramento final.',
-    pendencias: 'Aterramento pendente.',
-    fotos: []
-  }
-];
+let allVistorias = []; // Cache para as vistorias carregadas
+let currentVistoria = null; // Armazena a vistoria atualmente exibida no modal
 
 function getStatusLabel(status) {
   const map = {
-    ok: 'OK',
-    alerta: 'Alerta',
-    pendente: 'Pendente'
+    conforme: 'Conforme',
+    'nao-conforme': 'Não Conforme',
+    'nao-aplica': 'N/A'
   };
 
   return map[status] || 'Sem status';
@@ -46,154 +19,246 @@ function getStatusLabel(status) {
 
 function renderReformaVistoriaForm() {
   const container = document.getElementById('reformaVistoriaList');
-  const form = document.getElementById('reformaVistoriaForm');
-  if (!container || !form) return;
-
-  const checklist = getReformaChecklist();
-
-  if (!checklist.length) {
-    container.innerHTML = '<div class="empty-state">Cadastre uma reforma para gerar o checklist de vistoria.</div>';
-    return;
-  }
-
-  container.innerHTML = checklist
-    .map(
-      (item, index) => `
-        <div class="inspection-item" data-item-id="${index}">
-          <div class="inspection-item-header">
-            <div>
-              <strong>${item.room}</strong>
-              <small>${item.disciplina}</small>
-            </div>
-            <span class="status-badge pendente">Qtd: ${item.quantidade}</span>
-          </div>
-          <div><small>${item.item}</small></div>
-          <label>
-            Status
-            <select name="status-${index}" data-item-status>
-              <option value="conforme">Conforme</option>
-              <option value="pendente" selected>Pendente</option>
-              <option value="nao-aplica">Não se aplica</option>
-            </select>
-          </label>
-          <label>
-            Observação
-            <textarea name="observacao-${index}" rows="2" placeholder="Descreva observação, defeito ou ajuste..."></textarea>
-          </label>
-        </div>
-      `
-    )
-    .join('');
+  // Esta função pode ser removida ou adaptada se não for mais usada.
+  if (container) container.innerHTML = '<p>Módulo de vistoria de reforma desativado.</p>';
 }
 
-function renderVistorias(items, reformaChecklist = []) {
-  const list = document.getElementById('vistoriasChecklist');
-
+function renderVistorias(items) {
+  const list = document.getElementById('vistoriasList');
   if (!list) return;
 
-  const normalized = reformaChecklist.length
-    ? reformaChecklist.map((item) => ({
-        titulo: `${item.room} · ${item.disciplina}`,
-        obra: 'Reforma',
-        area: item.room,
-        pendencias: `${item.item} · Qtd: ${item.quantidade}`,
-        status: item.status || 'pendente'
-      }))
-    : items.length
-      ? items
-      : defaultVistorias;
-
-  list.innerHTML = normalized
-    .map(
-      (item) => `
-        <li>
-          <div>
-            <strong>${item.titulo || item.area || 'Item de vistoria'}</strong>
-            <small>${item.obra || 'Obra não informada'} · ${item.area || 'Área não informada'}</small>
-            <small>${item.pendencias || 'Sem pendências'} </small>
-          </div>
-          <span class="status-badge ${item.status}">${getStatusLabel(item.status)}</span>
-        </li>
-      `
-    )
-    .join('');
-}
-
-function readFilesAsDataUrls(files) {
-  return Promise.all(
-    Array.from(files).map(
-      (file) =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        })
-    )
-  );
-}
-
-function renderPreviewFromFiles(files) {
-  const preview = document.getElementById('photoPreview');
-  if (!preview) return;
-
-  if (!files || !files.length) {
-    preview.innerHTML = '<span class="empty-state">Nenhuma foto selecionada.</span>';
+  if (!items || items.length === 0) {
+    list.innerHTML = '<li class="empty-state">Nenhuma vistoria encontrada.</li>';
     return;
   }
 
-  Array.from(files).forEach((file) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const item = document.createElement('div');
-      item.className = 'photo-item';
-      item.innerHTML = `<img src="${event.target.result}" alt="Pré-visualização da vistoria" />`;
-      preview.appendChild(item);
-    };
-    reader.readAsDataURL(file);
-  });
+  allVistorias = items; // Armazena os dados carregados no cache
+
+  list.innerHTML = items.map(item => {
+    const conformidade = item.itens.filter(i => i.status === 'conforme').length;
+    const totalItens = item.itens.length;
+    const percentual = totalItens > 0 ? Math.round((conformidade / totalItens) * 100) : 0;
+
+    return `
+      <li class="clickable" data-vistoria-id="${item.id}">
+        <div>
+          <strong>${item.templateLabel}</strong>
+          <small>${item.empreendimentoName} · ${item.area}</small>
+          <small>Responsável: ${item.responsavelName}</small>
+        </div>
+        <div class="progress-wrap">
+          <span>${percentual}% Conforme</span>
+          <div class="progress-bar"><i style="width:${percentual}%"></i></div>
+        </div>
+      </li>
+    `;
+  }).join('');
+}
+
+function renderChecklistForVistoria(templateKey) {
+  const container = document.getElementById('vistoriaChecklistContainer');
+  if (!container) return;
+
+  const template = conferenceChecklists[templateKey];
+  if (!template) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = template.items.map((item, index) => `
+    <div class="inspection-item" data-item-id="${index}">
+      <p>${item}</p>
+      <div class="inspection-item-actions">
+        <label>
+          Status
+          <select name="status-${index}" data-item-status required>
+            <option value="conforme">Conforme</option>
+            <option value="nao-conforme">Não Conforme</option>
+            <option value="nao-aplica">Não se Aplica</option>
+          </select>
+        </label>
+        <label>
+          Observação
+          <input type="text" name="obs-${index}" placeholder="Opcional: descreva o problema...">
+        </label>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderVistoriaDetails(vistoria) {
+  const modalBody = document.getElementById('vistoriaDetailBody');
+  if (!modalBody) return;
+
+  const headerHTML = `
+    <div class="vistoria-detail-header">
+      <strong>${vistoria.templateLabel}</strong>
+      <small><strong>Empreendimento:</strong> ${vistoria.empreendimentoName}</small>
+      <small><strong>Área/Setor:</strong> ${vistoria.area}</small>
+      <small><strong>Responsável:</strong> ${vistoria.responsavelName}</small>
+    </div>
+  `;
+
+  const itemsHTML = vistoria.itens.map(item => `
+    <div class="inspection-item">
+      <p>${item.item}</p>
+      <div class="inspection-item-actions">
+        <span class="status-badge ${item.status}">${getStatusLabel(item.status)}</span>
+        ${item.observacao ? `<small><strong>Obs:</strong> ${item.observacao}</small>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  modalBody.innerHTML = headerHTML + `<div class="inspection-list">${itemsHTML}</div>`;
 }
 
 export function initVistoriasModule() {
   const card = document.getElementById('vistoriasView');
-  const button = document.querySelector('[data-vistoria-quick]');
   const form = document.getElementById('vistoriaForm');
-  const photoInput = document.getElementById('inspectionPhotos');
+  const templateSelect = document.getElementById('checklistTemplateSelect');
+  const detailModal = document.getElementById('vistoriaDetailModal');
+  const vistoriasList = document.getElementById('vistoriasList');
+  const pdfBtn = document.getElementById('vistoriaDetailPdfBtn');
+  const whatsappBtn = document.getElementById('vistoriaDetailWhatsappBtn');
 
   if (!card) return;
   card.dataset.module = 'vistorias';
 
-  if (photoInput) {
-    photoInput.addEventListener('change', (event) => {
-      const preview = document.getElementById('photoPreview');
-      if (preview) preview.innerHTML = '';
-      renderPreviewFromFiles(event.target.files);
+  // --- Lógica do Modal de Detalhes ---
+  if (detailModal) {
+    // Gerar PDF
+    pdfBtn.addEventListener('click', async () => {
+      if (!currentVistoria) return;
+
+      // Função auxiliar para carregar a imagem do logo como Base64
+      const getLogoBase64 = () => new Promise((resolve) => {
+        const img = new Image();
+        img.src = 'assets/logo/logo.png'; // Caminho para o seu logo
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => {
+          console.error("Não foi possível carregar o logo para o PDF.");
+          resolve(null); // Retorna nulo se o logo não puder ser carregado
+        };
+      });
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 15; // Posição vertical inicial
+
+      // Adiciona o logo ao PDF
+      const logoData = await getLogoBase64();
+      if (logoData) {
+        doc.addImage(logoData, 'PNG', 14, y, 25, 25); // (imagem, formato, x, y, largura, altura)
+      }
+
+      // Cabeçalho
+      doc.setFontSize(18);
+      doc.text('Relatório de Vistoria', 105, y + 10, { align: 'center' });
+      y += 30; // Aumenta o espaço vertical para acomodar o logo
+
+      doc.setFontSize(12);
+      doc.text(`Empreendimento: ${currentVistoria.empreendimentoName}`, 14, y);
+      y += 7;
+      doc.text(`Área/Setor: ${currentVistoria.area}`, 14, y);
+      y += 7;
+      doc.text(`Responsável: ${currentVistoria.responsavelName}`, 14, y);
+      y += 12;
+
+      // Itens do Checklist
+      doc.setFontSize(14);
+      doc.text('Itens Verificados', 14, y);
+      y += 10;
+
+      doc.setFontSize(10);
+      currentVistoria.itens.forEach(item => {
+        if (y > 280) { // Nova página se o conteúdo estiver no final
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(`- ${item.item}`, 14, y);
+        y += 5;
+        doc.text(`  Status: ${getStatusLabel(item.status)}`, 18, y);
+        y += 5;
+        if (item.observacao) {
+          doc.text(`  Obs: ${item.observacao}`, 18, y);
+          y += 5;
+        }
+        y += 3; // Espaço entre itens
+      });
+
+      doc.save(`Vistoria_${currentVistoria.empreendimentoName.replace(/\s/g, '_')}.pdf`);
+    });
+
+    // Compartilhar no WhatsApp
+    whatsappBtn.addEventListener('click', () => {
+      if (!currentVistoria) return;
+
+      const conformidade = currentVistoria.itens.filter(i => i.status === 'conforme').length;
+      const totalItens = currentVistoria.itens.length;
+      const percentual = totalItens > 0 ? Math.round((conformidade / totalItens) * 100) : 0;
+
+      let message = `*📋 RELATÓRIO DE VISTORIA*\n\n`;
+      message += `*Serviço:* ${currentVistoria.templateLabel}\n`;
+      message += `*Empreendimento:* ${currentVistoria.empreendimentoName}\n`;
+      message += `*Área:* ${currentVistoria.area}\n`;
+      message += `*Responsável:* ${currentVistoria.responsavelName}\n`;
+      message += `*Conformidade:* ${percentual}%\n\n`;
+      message += `*Itens Verificados:*\n`;
+
+      currentVistoria.itens.forEach(item => {
+        const statusIcon = {
+          conforme: '✅',
+          'nao-conforme': '❌',
+          'nao-aplica': '➖'
+        }[item.status];
+
+        message += `${statusIcon} ${item.item}\n`;
+        if (item.observacao) {
+          message += `  *Obs:* ${item.observacao}\n`;
+        }
+      });
+
+      // Chama a função global de compartilhamento
+      window.shareOnWhatsApp(message);
+    });
+
+    detailModal.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay') || e.target.classList.contains('close-modal')) {
+        detailModal.classList.add('hidden');
+      }
+    });
+  }
+
+  if (templateSelect) {
+    templateSelect.addEventListener('change', (e) => {
+      renderChecklistForVistoria(e.target.value);
     });
   }
 
   const refresh = () => {
-    Promise.all([
-      loadCollection('vistorias'),
-      loadCollection('reformas')
-    ]).then(([vistorias, reformas]) => {
-      // Extrai o checklist da reforma mais recente
-      const lastReforma = reformas && reformas.length > 0 ? reformas[reformas.length - 1] : null;
-      const reformaChecklist = lastReforma?.checklistGerado || [];
-      
-      renderVistorias(vistorias, reformaChecklist);
-    }).catch(error => {
-      console.warn("Não foi possível carregar dados do Firestore, usando dados padrão.", error);
-      // Em caso de erro total, renderiza com os dados padrão e sem checklist
-      renderVistorias(defaultVistorias, []);
-    });
-  };
+    loadCollection('vistorias').then(renderVistorias).catch(() => renderVistorias([]));
+  }
 
-  if (button) {
-    button.addEventListener('click', () => {
-      const formElement = document.getElementById('vistoriaForm');
-      if (formElement) formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      const firstInput = formElement?.querySelector('input[name="obra"]');
-      if (firstInput) firstInput.focus();
+  if (vistoriasList) {
+    vistoriasList.addEventListener('click', (e) => {
+      const listItem = e.target.closest('li[data-vistoria-id]');
+      if (!listItem) return;
+
+      const vistoriaId = listItem.dataset.vistoriaId;
+      const vistoria = allVistorias.find(v => v.id === vistoriaId);
+
+      if (vistoria && detailModal) {
+        currentVistoria = vistoria; // Armazena a vistoria selecionada
+        renderVistoriaDetails(vistoria);
+        detailModal.classList.remove('hidden');
+      }
     });
   }
 
@@ -206,22 +271,30 @@ export function initVistoriasModule() {
 
       try {
         const formData = new FormData(form);
+        const templateKey = formData.get('template');
+        const template = conferenceChecklists[templateKey];
+
+        const itensVistoriados = template.items.map((item, index) => ({
+          item: item,
+          status: formData.get(`status-${index}`),
+          observacao: formData.get(`obs-${index}`) || '',
+        }));
+
         const payload = {
-          titulo: `Vistoria - ${formData.get('obra') || 'obra'}`,
-          obra: formData.get('obra') || 'Não informado',
-          area: formData.get('area') || 'Não informado',
-          responsavel: formData.get('responsavel') || 'Não informado',
-          status: formData.get('status') || 'pendente',
-          observacoes: formData.get('observacoes') || 'Sem observações',
-          pendencias: formData.get('pendencias') || 'Nenhuma.',
-          fotos: photoInput && photoInput.files ? await readFilesAsDataUrls(photoInput.files) : []
+          templateKey: templateKey,
+          templateLabel: template.label,
+          empreendimentoId: formData.get('empreendimentoId'),
+          empreendimentoName: form.querySelector('#vistoriaEmpreendimentoSelect option:checked')?.textContent,
+          area: formData.get('area'),
+          responsavelId: formData.get('responsavelId'),
+          responsavelName: form.querySelector('#vistoriaResponsavelSelect option:checked')?.textContent,
+          itens: itensVistoriados,
         };
 
         await saveDocument('vistorias', payload);
         showToast('Vistoria salva com sucesso!', 'success');
         form.reset();
-        const preview = document.getElementById('photoPreview');
-        if (preview) preview.innerHTML = '<span class="empty-state">Nenhuma foto selecionada.</span>';
+        document.getElementById('vistoriaChecklistContainer').innerHTML = '';
         refresh();
       } catch (error) {
         console.error('Erro ao salvar vistoria:', error);
@@ -233,54 +306,10 @@ export function initVistoriasModule() {
     });
   }
 
-  const reformaVistoriaForm = document.getElementById('reformaVistoriaForm');
-  if (reformaVistoriaForm) {
-    renderReformaVistoriaForm();
+  // Popula os selects com dados de outros módulos
+  loadCollection('empreendimentos').then(data => populateEmpreendimentoSelect(data, 'vistoriaEmpreendimentoSelect'));
+  loadCollection('users').then(data => populateUserSelect(data, 'vistoriaResponsavelSelect'));
 
-    // A função getReformaChecklist foi removida, então precisamos carregar os dados aqui também.
-    const getReformaChecklistFromSource = async () => {
-      const reformas = await loadCollection('reformas');
-      const last = reformas[reformas.length - 1];
-      return (last && Array.isArray(last.checklistGerado)) ? last.checklistGerado : [];
-    };
-
-    reformaVistoriaForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const submitButton = reformaVistoriaForm.querySelector('button[type="submit"]');
-      submitButton.disabled = true;
-      submitButton.textContent = 'Salvando...';
-
-      try {
-        const checklist = await getReformaChecklistFromSource();
-        if (!checklist.length) {
-          showToast('Não há checklist de reforma para salvar.', 'info');
-          return;
-        }
-
-        const items = checklist.map((item, index) => {
-        const statusElement = reformaVistoriaForm.querySelectorAll('[data-item-status]')[index];
-        const noteElement = reformaVistoriaForm.querySelectorAll('textarea')[index];
-
-          return {
-            ...item,
-            status: statusElement ? statusElement.value : 'pendente',
-            observacao: noteElement ? noteElement.value : ''
-          };
-        });
-
-        const payload = { itens: items };
-        await saveDocument('vistoriasReforma', payload);
-
-        showToast('Vistoria da reforma salva!', 'success');
-      } catch (error) {
-        console.error('Erro ao salvar vistoria da reforma:', error);
-        showToast('Ocorreu um erro ao salvar a vistoria.', 'error');
-      } finally {
-        submitButton.disabled = false;
-        submitButton.textContent = 'Salvar vistoria';
-      }
-    });
-  }
-
+  // Carrega a lista inicial de vistorias
   refresh();
 }

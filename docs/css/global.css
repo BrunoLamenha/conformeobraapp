@@ -1470,3 +1470,35 @@ h1 {
 .whatsapp-cancel:hover {
   background: var(--line);
 }
+
+/* --- Vistoria Detail Styles --- */
+.task-list li.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.task-list li.clickable:hover {
+  background-color: var(--panel-alt);
+}
+
+.vistoria-detail-header {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.vistoria-detail-header strong {
+  font-size: 1.2rem;
+  color: var(--primary);
+}
+
+.vistoria-detail-header small {
+  color: var(--muted);
+}
+
+.inspection-item .inspection-item-actions {
+  display: grid;
+  gap: 10px;
+}

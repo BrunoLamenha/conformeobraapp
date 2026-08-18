@@ -60,12 +60,6 @@ const roomCatalog = {
       acabamento: ['Portões', 'Grades', 'Mobiliário']
     }
   },
-  const roomCatalog = {
-  novoComodo: {
-    label: 'Novo Cômodo',
-    disciplinas: { ... }
-  }
-};
 
 const disciplineLabels = {
   hidraulica: 'Hidráulica',

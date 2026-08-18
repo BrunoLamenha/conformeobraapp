@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="css/global.css" />
     <link rel="stylesheet" href="css/wizard.css" />
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
@@ -205,51 +206,42 @@
                   <span class="whatsapp-icon">💬</span> WhatsApp
                 </button>
               </div>
-              <div class="module-grid">
-                <div class="module-panel">
-                  <h3>Checklist obrigatório</h3>
-                  <ul id="vistoriasChecklist" class="task-list"></ul>
-                </div>
 
-                <div class="module-panel">
-                  <h3>Registrar inspeção</h3>
-                  <form id="vistoriaForm" class="inspection-form">
-                    <label>
-                      Obra
-                      <input type="text" name="obra" placeholder="Ex: Torre Central" required />
-                    </label>
-                    <label>
-                      Área / setor
-                      <input type="text" name="area" placeholder="Ex: Bloco A - 3º andar" required />
-                    </label>
-                    <label>
-                      Responsável
-                      <input type="text" name="responsavel" placeholder="Nome do responsável" required />
-                    </label>
-                    <label>
-                      Status geral
-                      <select name="status" required>
-                        <option value="ok">Conforme</option>
-                        <option value="alerta">Alerta</option>
-                        <option value="pendente">Pendente</option>
-                      </select>
-                    </label>
-                    <label>
-                      Observações da vistoria
-                      <textarea name="observacoes" rows="4" placeholder="Descreva o que foi observado..." required></textarea>
-                    </label>
-                    <label>
-                      Pendências
-                      <input type="text" name="pendencias" placeholder="Ex: Ajuste de fissura na laje" />
-                    </label>
-                    <label>
-                      Fotos da inspeção
-                      <input id="inspectionPhotos" type="file" name="fotos" accept="image/*" multiple />
-                    </label>
-                    <div id="photoPreview" class="photo-preview" aria-live="polite"></div>
-                    <button type="submit" class="primary-btn">Salvar vistoria</button>
-                  </form>
-                </div>
+              <div class="module-panel">
+                <h3>Vistorias Realizadas</h3>
+                <ul id="vistoriasList" class="task-list">
+                  <li class="empty-state">Nenhuma vistoria encontrada.</li>
+                </ul>
+              </div>
+
+              <div class="module-panel" style="margin-top: 2rem;">
+                <h3>Nova Vistoria de Conferência</h3>
+                <form id="vistoriaForm" class="inspection-form">
+                  <label>Empreendimento
+                    <select id="vistoriaEmpreendimentoSelect" name="empreendimentoId" required><option value="">Selecione</option></select>
+                  </label>
+                  <label>Área/Setor Vistoriado
+                    <input type="text" name="area" placeholder="Ex: Bloco A - Apto 101" required />
+                  </label>
+                  <label>Responsável pela Vistoria
+                    <select id="vistoriaResponsavelSelect" name="responsavelId" required><option value="">Selecione</option></select>
+                  </label>
+                  <label>Selecione o Checklist de Conferência
+                    <select id="checklistTemplateSelect" name="template" required>
+                      <option value="">Selecione um serviço para vistoriar</option>
+                      <option value="alvenaria">Alvenaria Concluída</option>
+                      <option value="revestimento_parede">Revestimento de Parede</option>
+                      <option value="pintura">Pintura Finalizada</option>
+                      <option value="eletrica">Instalações Elétricas</option>
+                    </select>
+                  </label>
+
+                  <div id="vistoriaChecklistContainer" class="inspection-list" style="margin-top: 1rem;">
+                    <!-- Itens do checklist serão renderizados aqui -->
+                  </div>
+
+                  <button type="submit" class="primary-btn">Salvar Vistoria</button>
+                </form>
               </div>
             </div>
           </div>
@@ -995,6 +987,28 @@
         <div class="wizard-footer">
           <button type="button" class="secondary-btn" id="prevStep">Anterior</button>
           <button type="button" class="primary-btn" id="nextStep">Próximo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VISTORIA DETAIL MODAL -->
+    <div id="vistoriaDetailModal" class="modal-overlay hidden" aria-hidden="true">
+      <div class="modal" style="display: block; max-width: 700px;">
+        <div class="modal-content" role="dialog" aria-modal="true">
+          <div class="modal-header">
+            <h3 id="vistoriaDetailTitle">Detalhes da Vistoria</h3>
+            <button class="close-modal" aria-label="Fechar">×</button>
+          </div>
+          <div id="vistoriaDetailBody" class="modal-body">
+            <!-- Details will be rendered here by JavaScript -->
+          </div>
+          <div class="modal-footer">
+            <button id="vistoriaDetailPdfBtn" class="primary-btn">Gerar PDF</button>
+            <button id="vistoriaDetailWhatsappBtn" class="whatsapp-btn" title="Compartilhar por WhatsApp">
+              <span class="whatsapp-icon">💬</span> WhatsApp
+            </button>
+            <button class="secondary-btn close-modal">Fechar</button>
+          </div>
         </div>
       </div>
     </div>
