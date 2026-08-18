@@ -175,8 +175,11 @@ export async function syncPendingWrites() {
     try {
       if (write.type === 'update' && write.docId) {
         await db.collection(write.collectionName).doc(write.docId).update(write.payload);
+      } else if (write.type === 'delete' && write.docId) {
+        await db.collection(write.collectionName).doc(write.docId).delete();
       } else {
         // Assume 'add' como padrão para compatibilidade com a versão anterior
+        // For 'add' operations, the payload already contains the ID if generated locally
         await db.collection(write.collectionName).add(write.payload);
       }
       console.log(`✅ Item da coleção '${write.collectionName}' sincronizado com sucesso.`);
@@ -345,6 +348,44 @@ function updateInLocalStorage(collectionName, docId, payload) {
 
   console.log(`Documento atualizado localmente e adicionado à fila de sincronização: ${collectionName}/${docId}`);
   return Promise.resolve({ id: docId, ...payload });
+}
+
+export async function deleteDocument(collectionName, docId) {
+  const db = initFirebase();
+
+  if (!db) {
+    // Fallback para localStorage se o Firebase não estiver disponível
+    return deleteFromLocalStorage(collectionName, docId);
+  }
+
+  try {
+    await db.collection(collectionName).doc(docId).delete();
+    console.log(`Documento excluído do Firestore: ${collectionName}/${docId}`);
+    // Atualiza também o cache local para consistência imediata
+    const items = await loadCollection(collectionName); // Recarrega para atualizar o cache
+    const key = `conformeobras:${collectionName}`;
+    localStorage.setItem(key, JSON.stringify(items.filter(item => item.id !== docId)));
+    return { id: docId };
+  } catch (error) {
+    console.warn(`Firestore indisponível para exclusão (${error.message}). Usando localStorage como fallback.`);
+    return deleteFromLocalStorage(collectionName, docId);
+  }
+}
+
+function deleteFromLocalStorage(collectionName, docId) {
+  const collectionKey = `conformeobras:${collectionName}`;
+  const syncQueueKey = 'conformeobras:sync_queue';
+
+  let currentCollection = JSON.parse(localStorage.getItem(collectionKey) || '[]');
+  currentCollection = currentCollection.filter(item => item.id !== docId);
+  localStorage.setItem(collectionKey, JSON.stringify(currentCollection));
+
+  const currentQueue = JSON.parse(localStorage.getItem(syncQueueKey) || '[]');
+  currentQueue.push({ type: 'delete', collectionName, docId });
+  localStorage.setItem(syncQueueKey, JSON.stringify(currentQueue));
+
+  console.log(`Documento excluído localmente e adicionado à fila de sincronização: ${collectionName}/${docId}`);
+  return Promise.resolve({ id: docId });
 }
 
 function loadFromLocalStorage(collectionName) {

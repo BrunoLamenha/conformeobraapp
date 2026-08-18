@@ -1,8 +1,10 @@
 import { loadCollection, saveDocument, updateDocument } from '../firebase-init.js';
 import { showToast } from '../utils/toast.js';
 import { isHoliday } from '../data/holidays.js';
+import { populateEmpreendimentoSelect } from './empreendimentos.js'; // Importa a função para popular empreendimentos
 
 import { populateEmpreendimentoSelect } from './empreendimentos.js'; // Importa a função para popular empreendimentos
+ 
 let currentOrcamento = null;
 let allCronogramas = []; // Cache for all saved cronogramas
 let currentCalendarDate = new Date(); // Tracks the month/year being displayed
@@ -10,6 +12,7 @@ let currentCalendarView = 'month'; // 'month', 'week', 'day'
 let selectedCronogramaId = null;
 let currentTask = null; // Armazena a tarefa selecionada no modal
 let tasks = [];
+
 
 /**
  * Adiciona um número de dias úteis a uma data, pulando fins de semana.
@@ -232,12 +235,381 @@ function renderCalendarGrid(year, month, cronogramaTasks = []) {
       taskEndDate.setHours(0, 0, 0, 0);
 
       if (currentDay >= taskStartDate && currentDay <= taskEndDate) {
-        const progressClass = getTaskProgressClass(task.percentCompleted);
+        const progressClass = getTaskProgressClass(task.percentCompleted); // Define a classe de progresso
         calendarHTML += `<div class="calendar-task ${progressClass}" title="${task.name} (${formatDateToLocale(taskStartDate)} - ${formatDateToLocale(taskEndDate)})" data-task-id="${task.id}">
                            <span>${task.name}</span>
                            ${task.percentCompleted > 0 ? `<span class="task-percent">${task.percentCompleted}%</span>` : ''}
                          </div>`;
-      } else if (isSameDay(currentDay, taskStartDate)) { // If task starts today
+      }
+      /* A condição else if (isSameDay(currentDay, taskStartDate)) é redundante.
+         Se currentDay é a data de início, ela já satisfaz currentDay >= taskStartDate.
+         Removido para simplificar a lógica. */
+    });
+
+    calendarHTML += `
+        </div>
+      </div>
+    `;
+  }
+
+  calendarHTML += `</div>`;
+  calendarContainer.innerHTML = calendarHTML;
+
+  // Update current period display
+  document.getElementById('currentPeriodDisplay').textContent = new Date(year, month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+}
+
+function renderTaskDetailsModal(taskId) {
+  const selectedCronograma = allCronogramas.find(c => c.id === selectedCronogramaId);
+  if (!selectedCronograma) return;
+
+  const task = selectedCronograma.tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  currentTask = task; // Armazena a tarefa atual
+  const modal = document.getElementById('cronogramaTaskDetailModal');
+  const modalBody = document.getElementById('cronogramaTaskDetailBody');
+  if (!modal || !modalBody) return;
+
+  const predecessorName = task.predecessorId 
+    ? selectedCronograma.tasks.find(p => p.id === task.predecessorId)?.name || 'N/A'
+    : 'Nenhuma';
+
+  modalBody.innerHTML = `
+    <div class="task-detail-list">
+      <div class="task-detail-item">
+        <strong>Tarefa:</strong>
+        <span>${task.name}</span>
+      </div>
+      <div class="task-detail-item">
+        <strong>Duração:</strong>
+        <span>${task.duration} dia(s) útil(eis)</span>
+      </div>
+      <div class="task-detail-item">
+        <strong>Período:</strong>
+        <span>${formatDateToLocale(new Date(task.startDate))} a ${formatDateToLocale(new Date(task.endDate))}</span>
+      </div>
+      <div class="task-detail-item">
+        <strong>Depende de:</strong>
+        <span>${predecessorName}</span>
+      </div>
+      <div class="task-detail-item">
+        <strong>Concluído:</strong>
+        <input type="number" id="editTaskPercent" class="form-input" value="${task.percentCompleted}" min="0" max="100" style="width: 80px; padding: 4px;" />
+      </div>
+    </div>
+  `;
+  modal.classList.remove('hidden');
+}
+
+/**
+ * Renders the calendar grid for a given week.
+ * @param {Date} date - A date within the week to render.
+ * @param {Array} cronogramaTasks - The tasks to display.
+ */
+function renderWeekView(date, cronogramaTasks = []) {
+  const calendarContainer = document.getElementById('calendarContainer');
+  if (!calendarContainer) return;
+
+  const startOfWeek = new Date(date);
+  startOfWeek.setDate(date.getDate() - date.getDay()); // Go to Sunday
+
+  // For simplicity, we'll just list tasks for the week. A full grid is more complex.
+  
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+  const tasksThisWeek = cronogramaTasks.filter(task => {
+    const taskStart = new Date(task.startDate);
+    const taskEnd = new Date(task.endDate);
+    return taskStart <= endOfWeek && taskEnd >= startOfWeek;
+  });
+
+  if (tasksThisWeek.length === 0) {
+    calendarContainer.innerHTML = '<p class="empty-state">Nenhuma tarefa para esta semana.</p>';
+  } else {
+    calendarContainer.innerHTML = `
+      <div class="day-view-container">
+        ${tasksThisWeek.map(task => {
+          const taskStart = new Date(task.startDate);
+          const taskEnd = new Date(task.endDate);
+          const progressClass = getTaskProgressClass(task.percentCompleted); // Define a classe de progresso
+          return `
+          <div class="day-view-task ${progressClass}" data-task-id="${task.id}">
+            ${task.percentCompleted > 0 ? `<span class="task-percent">${task.percentCompleted}%</span>` : ''}
+
+            <strong>${task.name}</strong>
+            <small>${formatDateToLocale(new Date(task.startDate))} - ${formatDateToLocale(new Date(task.endDate))}</small>
+          </div>
+        `;}).join('')}
+      </div>
+    `;
+  }
+
+  document.getElementById('currentPeriodDisplay').textContent = 
+    `${formatDateToLocale(startOfWeek)} - ${formatDateToLocale(endOfWeek)}`;
+}
+
+/**
+ * Renders the tasks for a single day.
+ * @param {Date} date - The date to render.
+ * @param {Array} cronogramaTasks - The tasks to display.
+ */
+function renderDayView(date, cronogramaTasks = []) {
+  const calendarContainer = document.getElementById('calendarContainer');
+  if (!calendarContainer) return;
+
+  const tasksToday = cronogramaTasks.filter(task => {
+    const taskStart = new Date(task.startDate);
+    const taskEnd = new Date(task.endDate);
+    return date >= taskStart && date <= taskEnd;
+  });
+
+  if (tasksToday.length === 0) {
+    calendarContainer.innerHTML = '<p class="empty-state">Nenhuma tarefa para hoje.</p>';
+  } else {
+    calendarContainer.innerHTML = `
+      <div class="day-view-container">
+        ${tasksToday.map(task => {
+          const progressClass = getTaskProgressClass(task.percentCompleted); // Define a classe de progresso
+          return `<div class="day-view-task ${progressClass}" data-task-id="${task.id}">
+                                    ${task.percentCompleted > 0 ? `<span class="task-percent">${task.percentCompleted}%</span>` : ''}
+
+                                    <strong>${task.name}</strong>
+                                    ${task.percentCompleted > 0 ? `<small>Concluído: ${task.percentCompleted}%</small>` : ''}
+                                  </div>`;}).join('')}
+      </div>
+    `;
+  }
+
+  document.getElementById('currentPeriodDisplay').textContent = formatDateToLocale(date);
+}
+
+/**
+ * Main calendar rendering function.
+ */
+async function renderCalendar() {
+  const calendarContainer = document.getElementById('calendarContainer');
+  if (!calendarContainer) return;
+
+  if (!selectedCronogramaId) {
+    calendarContainer.innerHTML = '<p class="empty-state">Selecione um cronograma para visualizar.</p>';
+    return;
+  }
+
+  const selectedCronograma = allCronogramas.find(c => c.id === selectedCronogramaId);
+  if (!selectedCronograma) {
+    calendarContainer.innerHTML = '<p class="empty-state">Cronograma não encontrado.</p>';
+    return;
+  }
+
+  const year = currentCalendarDate.getFullYear();
+  const month = currentCalendarDate.getMonth();
+
+  // Render based on currentCalendarView (for now, only month)
+  if (currentCalendarView === 'month') {
+    renderCalendarGrid(year, month, selectedCronograma.tasks);
+  } else if (currentCalendarView === 'week') {
+    renderWeekView(currentCalendarDate, selectedCronograma.tasks);
+  } else if (currentCalendarView === 'day') {
+    renderDayView(currentCalendarDate, selectedCronograma.tasks);
+  }
+}
+
+/**
+ * Populates the cronograma select dropdown, filtered by empreendimento.
+ */
+async function populateCronogramaSelect() {
+  const selectElement = document.getElementById('calendarCronogramaSelect');
+  if (!selectElement) return;
+
+  const selectedEmpreendimentoId = document.getElementById('calendarEmpreendimentoFilter').value;
+  allCronogramas = await loadCollection('cronogramas'); // Load all cronogramas
+
+  // Filter cronogramas by selected empreendimento
+  const filteredCronogramas = selectedEmpreendimentoId === 'all'
+    ? allCronogramas
+    : allCronogramas.filter(c => c.empreendimentoId === selectedEmpreendimentoId);
+
+  // Clear existing options, keep the first "Selecione um cronograma"
+  while (selectElement.options.length > 1) {
+    selectElement.remove(1);
+  }
+
+  filteredCronogramas.forEach(cronograma => {
+    const option = document.createElement('option');
+    option.value = cronograma.id;
+    option.textContent = cronograma.name;
+    selectElement.appendChild(option);
+  });
+
+  // If there's a selected cronograma, try to pre-select it
+  if (selectedCronogramaId && filteredCronogramas.some(c => c.id === selectedCronogramaId)) {
+    selectElement.value = selectedCronogramaId;
+  } else if (filteredCronogramas.length > 0) {
+    // Otherwise, select the first one by default
+    selectedCronogramaId = filteredCronogramas[0].id;
+    selectElement.value = selectedCronogramaId;
+  } else {
+    selectedCronogramaId = null; // No cronograma selecionado
+    selectElement.value = ""; // Garante que o select mostre "Selecione"
+  }
+
+  // Show/hide delete button based on selection
+  const deleteCronogramaBtn = document.getElementById('deleteCronogramaBtn');
+  if (deleteCronogramaBtn) {
+    deleteCronogramaBtn.style.display = selectedCronogramaId ? 'inline-block' : 'none';
+  }
+
+  renderCalendar(); // Render calendar with the selected cronograma
+}
+
+async function handleDeleteCronograma() {
+  if (!selectedCronogramaId) {
+    showToast('Nenhum cronograma selecionado para exclusão.', 'error');
+    return;
+  }
+
+  if (!confirm('Tem certeza que deseja excluir este cronograma? Esta ação é irreversível.')) {
+    return;
+  }
+
+  try {
+    await deleteDocument('cronogramas', selectedCronogramaId);
+    showToast('Cronograma excluído com sucesso!', 'success');
+    selectedCronogramaId = null; // Limpa a seleção
+    await populateCronogramaSelect(); // Recarrega cronogramas e atualiza a UI
+  } catch (error) {
+    showToast('Erro ao excluir cronograma.', 'error');
+    console.error('Erro ao excluir cronograma:', error);
+  }
+}
+
+export function initCronogramaModule() {
+  const saveBtn = document.getElementById('saveCronogramaBtn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', handleSaveCronograma);
+  }
+}
+
+export function initCalendarioModule() {
+  const calendarCronogramaSelect = document.getElementById('calendarCronogramaSelect');
+  const prevPeriodBtn = document.getElementById('prevPeriodBtn');
+  const nextPeriodBtn = document.getElementById('nextPeriodBtn');
+  const calendarEmpreendimentoFilter = document.getElementById('calendarEmpreendimentoFilter');
+  const viewMonthBtn = document.getElementById('calViewMonth');
+  const viewWeekBtn = document.getElementById('calViewWeek');
+  const viewDayBtn = document.getElementById('calViewDay');
+  const taskDetailModal = document.getElementById('cronogramaTaskDetailModal');
+  const deleteCronogramaBtn = document.getElementById('deleteCronogramaBtn');
+  const saveTaskBtn = document.getElementById('saveTaskDetailsBtn');
+  const calendarContainer = document.getElementById('calendarContainer');
+  const viewControls = [viewMonthBtn, viewWeekBtn, viewDayBtn];
+
+  // Popula o filtro de empreendimentos e adiciona listener
+  if (calendarEmpreendimentoFilter) {
+    loadCollection('empreendimentos').then(empreendimentos => {
+      populateEmpreendimentoSelect(empreendimentos, 'calendarEmpreendimentoFilter');
+    });
+    calendarEmpreendimentoFilter.addEventListener('change', populateCronogramaSelect); // Recarrega cronogramas ao mudar empreendimento
+  }
+
+  if (deleteCronogramaBtn) {
+    deleteCronogramaBtn.addEventListener('click', handleDeleteCronograma);
+  }
+
+  if (calendarCronogramaSelect) {
+    calendarCronogramaSelect.addEventListener('change', (e) => {
+      selectedCronogramaId = e.target.value;
+      renderCalendar();
+    });
+  }
+
+  if (prevPeriodBtn) {
+    prevPeriodBtn.addEventListener('click', () => {
+      if (currentCalendarView === 'month') {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+      } else if (currentCalendarView === 'week') {
+        currentCalendarDate.setDate(currentCalendarDate.getDate() - 7);
+      } else {
+        currentCalendarDate.setDate(currentCalendarDate.getDate() - 1);
+      }
+      renderCalendar();
+    });
+  }
+  if (nextPeriodBtn) {
+    nextPeriodBtn.addEventListener('click', () => {
+      if (currentCalendarView === 'month') {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+      } else if (currentCalendarView === 'week') {
+        currentCalendarDate.setDate(currentCalendarDate.getDate() + 7);
+        currentCalendarDate.setDate(currentCalendarDate.getDate() + 7); // Corrected from document = document.getElementById
+      } else {
+        currentCalendarDate.setDate(currentCalendarDate.getDate() + 1);
+      }
+      renderCalendar();
+    });
+  }
+
+  viewControls.forEach(btn => {
+    if (btn) {
+      btn.addEventListener('click', () => {
+        viewControls.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCalendarView = btn.id.replace('calView', '').toLowerCase();
+        renderCalendar();
+      });
+    }
+  });
+
+  // --- Lógica do Modal de Detalhes da Tarefa ---
+  if (taskDetailModal) {
+    taskDetailModal.addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay') || e.target.classList.contains('close-modal')) {
+        taskDetailModal.classList.add('hidden');
+        currentTask = null; // Limpa a tarefa atual ao fechar
+      }
+    });
+  }
+
+  if (saveTaskBtn) {
+    saveTaskBtn.addEventListener('click', async () => {
+      if (!currentTask || !selectedCronogramaId) return;
+
+      const newPercent = parseInt(document.getElementById('editTaskPercent').value, 10);
+      if (isNaN(newPercent) || newPercent < 0 || newPercent > 100) {
+        showToast('Por favor, insira um valor de 0 a 100.', 'error');
+        return;
+      }
+
+      try {
+        const selectedCronograma = allCronogramas.find(c => c.id === selectedCronogramaId);
+        const taskIndex = selectedCronograma.tasks.findIndex(t => t.id === currentTask.id);
+        selectedCronograma.tasks[taskIndex].percentCompleted = newPercent;
+
+        await updateDocument('cronogramas', selectedCronogramaId, { tasks: selectedCronograma.tasks });
+        showToast('Progresso da tarefa atualizado!', 'success');
+        taskDetailModal.classList.add('hidden');
+        renderCalendar(); // Atualiza o calendário para mostrar o novo percentual
+      } catch (error) {
+        showToast('Erro ao salvar o progresso.', 'error');
+        console.error(error);
+      }
+    });
+  }
+
+  if (calendarContainer) {
+    calendarContainer.addEventListener('click', (e) => {
+      const taskElement = e.target.closest('.calendar-task, .day-view-task');
+      if (taskElement && taskElement.dataset.taskId) {
+        renderTaskDetailsModal(taskElement.dataset.taskId);
+      }
+    });
+  }
+
+  populateCronogramaSelect(); // Initial load of cronogramas and calendar
+}
+}
         calendarHTML += `<div class="calendar-task" title="${task.name} (${formatDateToLocale(taskStartDate)} - ${formatDateToLocale(taskEndDate)})" data-task-id="${task.id}">
                            <span>${task.name}</span>
                            ${task.percentCompleted > 0 ? `<span class="task-percent">${task.percentCompleted}%</span>` : ''}
@@ -299,6 +671,77 @@ function renderTaskDetailsModal(taskId) {
     </div>
   `;
   modal.classList.remove('hidden');
+}
+
+/**
+ * Populates the cronograma select dropdown, filtered by empreendimento.
+ */
+async function populateCronogramaSelect() {
+  const selectElement = document.getElementById('calendarCronogramaSelect');
+  if (!selectElement) return;
+
+  const calendarEmpreendimentoFilter = document.getElementById('calendarEmpreendimentoFilter');
+  const selectedEmpreendimentoId = calendarEmpreendimentoFilter ? calendarEmpreendimentoFilter.value : 'all';
+  
+  allCronogramas = await loadCollection('cronogramas'); // Load all cronogramas
+
+  // Filter cronogramas by selected empreendimento
+  const filteredCronogramas = selectedEmpreendimentoId === 'all'
+    ? allCronogramas
+    : allCronogramas.filter(c => c.empreendimentoId === selectedEmpreendimentoId);
+
+  // Clear existing options, keep the first "Selecione um cronograma"
+  while (selectElement.options.length > 1) {
+    selectElement.remove(1);
+  }
+
+  filteredCronogramas.forEach(cronograma => {
+    const option = document.createElement('option');
+    option.value = cronograma.id;
+    option.textContent = cronograma.name;
+    selectElement.appendChild(option);
+  });
+
+  // If there's a selected cronograma, try to pre-select it
+  if (selectedCronogramaId && filteredCronogramas.some(c => c.id === selectedCronogramaId)) {
+    selectElement.value = selectedCronogramaId;
+  } else if (filteredCronogramas.length > 0) {
+    // Otherwise, select the first one by default
+    selectedCronogramaId = filteredCronogramas[0].id;
+    selectElement.value = selectedCronogramaId;
+  } else {
+    selectedCronogramaId = null; // No cronograma selecionado
+    selectElement.value = ""; // Garante que o select mostre "Selecione"
+  }
+
+  // Show/hide delete button based on selection
+  const deleteCronogramaBtn = document.getElementById('deleteCronogramaBtn');
+  if (deleteCronogramaBtn) {
+    deleteCronogramaBtn.style.display = selectedCronogramaId ? 'inline-block' : 'none';
+  }
+
+  renderCalendar(); // Render calendar with the selected cronograma
+}
+
+async function handleDeleteCronograma() {
+  if (!selectedCronogramaId) {
+    showToast('Nenhum cronograma selecionado para exclusão.', 'error');
+    return;
+  }
+
+  if (!confirm('Tem certeza que deseja excluir este cronograma? Esta ação é irreversível.')) {
+    return;
+  }
+
+  try {
+    await deleteDocument('cronogramas', selectedCronogramaId);
+    showToast('Cronograma excluído com sucesso!', 'success');
+    selectedCronogramaId = null; // Limpa a seleção
+    await populateCronogramaSelect(); // Recarrega cronogramas e atualiza a UI
+  } catch (error) {
+    showToast('Erro ao excluir cronograma.', 'error');
+    console.error('Erro ao excluir cronograma:', error);
+  }
 }
 
 /**
@@ -462,6 +905,8 @@ export function initCalendarioModule() {
   const viewWeekBtn = document.getElementById('calViewWeek');
   const viewDayBtn = document.getElementById('calViewDay');
   const taskDetailModal = document.getElementById('cronogramaTaskDetailModal');
+  const deleteCronogramaBtn = document.getElementById('deleteCronogramaBtn');
+
   const saveTaskBtn = document.getElementById('saveTaskDetailsBtn');
   const calendarContainer = document.getElementById('calendarContainer');
   const viewControls = [viewMonthBtn, viewWeekBtn, viewDayBtn];
@@ -474,6 +919,10 @@ export function initCalendarioModule() {
     calendarEmpreendimentoFilter.addEventListener('change', populateCronogramaSelect); // Recarrega cronogramas ao mudar empreendimento
   }
 
+  if (deleteCronogramaBtn) { // Listener para o botão de exclusão
+    deleteCronogramaBtn.addEventListener('click', handleDeleteCronograma);
+  }
+
   if (calendarCronogramaSelect) {
     calendarCronogramaSelect.addEventListener('change', (e) => {
       selectedCronogramaId = e.target.value;
@@ -481,126 +930,25 @@ export function initCalendarioModule() {
     });
   }
 
-  if (prevPeriodBtn) {
-    prevPeriodBtn.addEventListener('click', () => {
-      if (currentCalendarView === 'month') {
-        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
-      } else if (currentCalendarView === 'week') {
-        currentCalendarDate.setDate(currentCalendarDate.getDate() - 7);
-      } else {
-        currentCalendarDate.setDate(currentCalendarDate.getDate() - 1);
-      }
-      renderCalendar();
-    });
-  }
-  if (nextPeriodBtn) {
-    nextPeriodBtn.addEventListener('click', () => {
-      if (currentCalendarView === 'month') {
-        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
-      } else if (currentCalendarView === 'week') {
-        currentCalendarDate.setDate(currentCalendarDate.getDate() + 7);
-      } else {
-        currentCalendarDate.setDate(currentCalendarDate.getDate() + 1);
-      }
-      renderCalendar();
-    });
-  }
-
-  viewControls.forEach(btn => {
-    if (btn) {
-      btn.addEventListener('click', () => {
-        viewControls.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentCalendarView = btn.id.replace('calView', '').toLowerCase();
-        renderCalendar();
-      });
-    }
-  });
-
-  // --- Lógica do Modal de Detalhes da Tarefa ---
-  if (taskDetailModal) {
-    taskDetailModal.addEventListener('click', (e) => {
-      if (e.target.classList.contains('modal-overlay') || e.target.classList.contains('close-modal')) {
-        taskDetailModal.classList.add('hidden');
-        currentTask = null; // Limpa a tarefa atual ao fechar
-      }
-    });
-  }
-
-  if (saveTaskBtn) {
-    saveTaskBtn.addEventListener('click', async () => {
-      if (!currentTask || !selectedCronogramaId) return;
-
-      const newPercent = parseInt(document.getElementById('editTaskPercent').value, 10);
-      if (isNaN(newPercent) || newPercent < 0 || newPercent > 100) {
-        showToast('Por favor, insira um valor de 0 a 100.', 'error');
-        return;
-      }
-
-      try {
-        const selectedCronograma = allCronogramas.find(c => c.id === selectedCronogramaId);
-        const taskIndex = selectedCronograma.tasks.findIndex(t => t.id === currentTask.id);
-        selectedCronograma.tasks[taskIndex].percentCompleted = newPercent;
-
-        await updateDocument('cronogramas', selectedCronogramaId, { tasks: selectedCronograma.tasks });
-        showToast('Progresso da tarefa atualizado!', 'success');
-        taskDetailModal.classList.add('hidden');
-        renderCalendar(); // Atualiza o calendário para mostrar o novo percentual
-      } catch (error) {
-        showToast('Erro ao salvar o progresso.', 'error');
-        console.error(error);
-      }
-    });
-  }
-
-  if (calendarContainer) {
-    calendarContainer.addEventListener('click', (e) => {
-      const taskElement = e.target.closest('.calendar-task, .day-view-task');
-      if (taskElement && taskElement.dataset.taskId) {
-        renderTaskDetailsModal(taskElement.dataset.taskId);
-      }
-    });
-  }
-
-  /**
-   * Populates the cronograma select dropdown, filtered by empreendimento.
-   */
-  async function populateCronogramaSelect() {
-    const selectElement = document.getElementById('calendarCronogramaSelect');
-    if (!selectElement) return;
-
-    const selectedEmpreendimentoId = calendarEmpreendimentoFilter.value;
-    allCronogramas = await loadCollection('cronogramas'); // Load all cronogramas
-
-    // Filter cronogramas by selected empreendimento
-    const filteredCronogramas = selectedEmpreendimentoId === 'all'
-      ? allCronogramas
-      : allCronogramas.filter(c => c.empreendimentoId === selectedEmpreendimentoId);
-
-    // Clear existing options, keep the first "Selecione um cronograma"
-    while (selectElement.options.length > 1) {
-      selectElement.remove(1);
+  async function handleDeleteCronograma() {
+    if (!selectedCronogramaId) {
+      showToast('Nenhum cronograma selecionado para exclusão.', 'error');
+      return;
     }
 
-    filteredCronogramas.forEach(cronograma => {
-      const option = document.createElement('option');
-      option.value = cronograma.id;
-      option.textContent = cronograma.name;
-      selectElement.appendChild(option);
-    });
-
-    // If there's a selected cronograma, try to pre-select it
-    if (selectedCronogramaId && filteredCronogramas.some(c => c.id === selectedCronogramaId)) {
-      selectElement.value = selectedCronogramaId;
-    } else if (filteredCronogramas.length > 0) {
-      // Otherwise, select the first one by default
-      selectedCronogramaId = filteredCronogramas[0].id;
-      selectElement.value = selectedCronogramaId;
-    } else {
-      selectedCronogramaId = null; // No cronograma selecionado
+    if (!confirm('Tem certeza que deseja excluir este cronograma? Esta ação é irreversível.')) {
+      return;
     }
 
-    renderCalendar(); // Render calendar with the selected cronograma
+    try {
+      await deleteDocument('cronogramas', selectedCronogramaId);
+      showToast('Cronograma excluído com sucesso!', 'success');
+      selectedCronogramaId = null; // Limpa a seleção
+      await populateCronogramaSelect(); // Recarrega cronogramas e atualiza a UI
+    } catch (error) {
+      showToast('Erro ao excluir cronograma.', 'error');
+      console.error('Erro ao excluir cronograma:', error);
+    }
   }
 
   // Initial load of cronogramas and calendar
