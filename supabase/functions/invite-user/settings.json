@@ -1,0 +1,10 @@
+{
+  // Habilita a extensão do Deno para este workspace.
+  "deno.enable": true,
+  "deno.lint": true,
+  "deno.unstable": true,
+  // Esta é a parte mais importante: ativa o Deno APENAS para a pasta de funções.
+  "deno.enablePaths": [
+    "supabase/functions"
+  ]
+}

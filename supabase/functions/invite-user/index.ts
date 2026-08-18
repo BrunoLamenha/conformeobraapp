@@ -1,16 +1,27 @@
 // supabase/functions/invite-user/index.ts
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+// Define os cabeçalhos CORS que serão usados em todas as respostas.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Função auxiliar para criar respostas JSON com os cabeçalhos CORS corretos.
+function createJsonResponse(body: object, status: number) {
+  return new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: status,
+  });
+}
 
 // Função principal que será executada quando a Edge Function for chamada.
 serve(async (req) => {
   // 1. Trata a requisição CORS (essencial para chamadas do navegador)
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    } })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
@@ -31,10 +42,7 @@ serve(async (req) => {
     // Pega o usuário autenticado.
     const { data: { user } } = await userSupabaseClient.auth.getUser()
     if (!user) {
-      return new Response(JSON.stringify({ error: 'Autenticação falhou.' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return createJsonResponse({ error: 'Autenticação falhou. Token inválido ou expirado.' }, 401);
     }
 
     // Verifica na tabela 'profiles' se o usuário tem a role 'admin'.
@@ -44,11 +52,11 @@ serve(async (req) => {
       .eq('id', user.id)
       .single()
 
-    if (profileError || profile?.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Acesso negado. Apenas administradores podem convidar usuários.' }), {
-        status: 403, // Forbidden
-        headers: { 'Content-Type': 'application/json' },
-      })
+    if (profileError) {
+      return createJsonResponse({ error: `Erro ao verificar perfil: ${profileError.message}` }, 500);
+    }
+    if (profile?.role !== 'admin') {
+      return createJsonResponse({ error: 'Acesso negado. Apenas administradores podem convidar usuários.' }, 403);
     }
 
     // 4. Lógica Principal: Se o usuário é admin, convida o novo usuário.
@@ -69,30 +77,18 @@ serve(async (req) => {
     if (inviteError) {
       // Trata erros comuns, como usuário já existente.
       if (inviteError.message.includes('already registered')) {
-         return new Response(JSON.stringify({ error: 'Este e-mail já está cadastrado.' }), {
-          status: 409, // Conflict
-          headers: { 'Content-Type': 'application/json' },
-        })
+         return createJsonResponse({ error: 'Este e-mail já está cadastrado.' }, 409);
       }
       throw inviteError
     }
 
     // 5. Retorna sucesso.
-    return new Response(JSON.stringify(inviteData), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    })
+    return createJsonResponse(inviteData, 200);
 
   } catch (error) {
     // Retorna um erro genérico caso algo falhe.
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    })
+    // Garante que a mensagem de erro seja uma string.
+    const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro inesperado.';
+    return createJsonResponse({ error: errorMessage }, 500);
   }
 })
