@@ -1,21 +1,7 @@
-import { initCadastroModule } from './modules/cadastro.js';
-import { initVistoriasModule } from './modules/vistorias.js';
-import { initRelatoriosModule } from './modules/relatorios.js';
-import { initOrcamentosModule } from './modules/orcamentos.js';
-import { initReformasModule } from './modules/reformas.js';
-import { initProjetosModule } from './modules/projetos.js';
-import { initPessoasModule } from './modules/pessoas.js';
-import { initDashboardsModule } from './modules/dashboards.js';
-import { initCronogramaModule, initCalendarioModule } from './modules/cronograma.js';
-import { initChecklistModule } from './modules/checklist.js';
-import { initUsuariosModule } from './modules/usuarios.js';
-import { initPendenciasModule } from './modules/pendencias.js';
-import { initEmpreendimentosModule } from './modules/empreendimentos.js';
-import { initManagerDashboardModule } from './modules/managerDashboard.js';
-import { saveDocument, loadCollection, initFirebase, getAuth } from './firebase-init.js';
+import { loadCollection, initFirebase } from './firebase-init.js';
 import { setupSyncStatus } from './modules/syncStatus.js';
+import { setupAuth } from './auth.js';
 
-const navItems = document.querySelectorAll('.nav-item');
 const allNavButtons = document.querySelectorAll('.nav-item, .nav-bottom-item');
 const views = document.querySelectorAll('.view');
 const wizardOverlay = document.getElementById('wizardOverlay');
@@ -26,10 +12,6 @@ const wizardForm = document.getElementById('wizardForm');
 const stepPanels = Array.from(document.querySelectorAll('.wizard-step-panel'));
 const stepIndicators = Array.from(document.querySelectorAll('.step'));
 const summaryBox = document.getElementById('wizardSummary');
-const loginForm = document.getElementById('loginForm');
-const loginScreen = document.getElementById('loginScreen');
-const appShell = document.getElementById('appShell');
-const userAvatar = document.getElementById('userAvatar');
 const profileToggle = document.getElementById('profileToggle');
 const profileModal = document.getElementById('profileModal');
 const modulesModal = document.getElementById('modulesModal');
@@ -40,6 +22,8 @@ const searchResults = document.getElementById('searchResults');
 const userAvatarText = document.getElementById('userAvatarText');
 const closeModulesBtn = modulesModal?.querySelector('.close-modal');
 
+let modulesInitialized = false;
+
 // Dados do usuário logado
 let currentUser = {
   name: '',
@@ -48,7 +32,6 @@ let currentUser = {
 };
 
 let currentStep = 0;
-let deferredPrompt = null;
 
 function activateView(viewId) {
   views.forEach((view) => {
@@ -124,28 +107,6 @@ export async function updateUserInfo(user) {
     document.getElementById('profileCompany').textContent = companyName;
     document.getElementById('profileRole').textContent = claims.role || 'Operacional';
     document.getElementById('profileAvatarLarge').textContent = initials || 'U';
-  }
-}
-/**
- * Carrega os dados do último usuário logado do localStorage e preenche o formulário.
- */
-function prefillLoginForm() {
-  const lastUserJson = localStorage.getItem('conformeobras:lastUser');
-  if (lastUserJson) {
-    try {
-      const lastUser = JSON.parse(lastUserJson);
-      if (lastUser.company) {
-        document.getElementById('companySelect').value = lastUser.company;
-      }
-      if (lastUser.email) {
-        document.getElementById('userEmail').value = lastUser.email;
-        // Foca no campo de senha para agilizar o login
-        document.getElementById('userPassword').focus();
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados do último usuário:', error);
-      localStorage.removeItem('conformeobras:lastUser');
-    }
   }
 }
 
@@ -324,12 +285,6 @@ if (modulesModal) {
   });
 }
 
-// LOGOUT
-// A lógica de logout foi movida para auth.js
-if (searchInput) {
-  searchInput.addEventListener('input', handleSearch);
-}
-
 function updateWizardUI() {
   stepPanels.forEach((panel, index) => {
     panel.classList.toggle('active', index === currentStep);
@@ -412,13 +367,6 @@ nextStepButton.addEventListener('click', () => {
     });
 });
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((error) => {
-      console.error('Service worker failed:', error);
-    });
-  });
-}
 
 // Inicializar dados para compartilhamento
 window.loadedData = {
@@ -444,40 +392,64 @@ function updateLoadedData() {
   }
 }
 
-export function loadInitialData(user) {
+export async function loadInitialData(user) {
   console.log("Carregando dados iniciais para o usuário:", user.uid);
-  // Aqui você pode carregar coleções do Firestore específicas do usuário/empresa
-  loadCollection('cadastros').then((items) => {
-    console.log('Cadastros salvos:', items);
-  });
+  if (modulesInitialized) return;
+
+  // Importa e inicializa os módulos dinamicamente APENAS UMA VEZ.
+  const { initCadastroModule } = await import('./modules/cadastro.js');
+  const { initVistoriasModule } = await import('./modules/vistorias.js');
+  const { initRelatoriosModule } = await import('./modules/relatorios.js');
+  const { initOrcamentosModule } = await import('./modules/orcamentos.js');
+  const { initReformasModule } = await import('./modules/reformas.js');
+  const { initProjetosModule } = await import('./modules/projetos.js');
+  const { initPessoasModule } = await import('./modules/pessoas.js');
+  const { initDashboardsModule } = await import('./modules/dashboards.js');
+  const { initCronogramaModule, initCalendarioModule } = await import('./modules/cronograma.js');
+  const { initChecklistModule } = await import('./modules/checklist.js');
+  const { initUsuariosModule } = await import('./modules/usuarios.js');
+  const { initPendenciasModule } = await import('./modules/pendencias.js');
+  const { initEmpreendimentosModule } = await import('./modules/empreendimentos.js');
+  const { initManagerDashboardModule } = await import('./modules/managerDashboard.js');
+
+  initCadastroModule();
+  initVistoriasModule();
+  initRelatoriosModule();
+  initOrcamentosModule();
+  initReformasModule();
+  initProjetosModule();
+  initPessoasModule();
+  initDashboardsModule();
+  initCronogramaModule();
+  initCalendarioModule();
+  initChecklistModule();
+  initUsuariosModule();
+  initPendenciasModule();
+  initEmpreendimentosModule();
+  initManagerDashboardModule();
+
+  modulesInitialized = true;
+  console.log("Todos os módulos foram inicializados.");
 }
 
-initFirebase();
-initCadastroModule();
-initVistoriasModule();
-initRelatoriosModule();
-initOrcamentosModule();
-initReformasModule();
-initProjetosModule();
-initPessoasModule();
-initDashboardsModule();
-initCronogramaModule();
-initCalendarioModule();
-initChecklistModule();
-initUsuariosModule();
-initPendenciasModule();
-initEmpreendimentosModule();
-initManagerDashboardModule();
+function main() {
+  initFirebase();
+  setupAuth();
+  setupSyncStatus();
+  activateView('dashboard');
+  updateWizardUI();
 
-// Carregar dados para compartilhamento
-updateLoadedData();
+  if (searchInput) {
+    searchInput.addEventListener('input', handleSearch);
+  }
 
-// Atualizar dados quando houver alterações
-window.addEventListener('storage', () => {
-  updateLoadedData();
-});
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((error) => {
+        console.error('Service worker failed:', error);
+      });
+    });
+  }
+}
 
-setupSyncStatus();
-prefillLoginForm();
-activateView('dashboard');
-updateWizardUI();
+main();

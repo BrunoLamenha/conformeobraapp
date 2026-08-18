@@ -106,13 +106,15 @@ function toggleSignUpMode(isSigningUp) {
 /**
  * Observa mudanças no estado de autenticação do usuário.
  */
-function setupAuthObserver() {
+export function setupAuth() {
   if (!isFirebaseConfigured()) {
     // Se o Firebase não estiver configurado, esconde a tela de login e mostra o app
     // para permitir o uso em modo offline.
     loginScreen.classList.add('hidden');
     appShell.classList.remove('hidden');
     console.warn('App em modo offline. Funcionalidades de login e sincronização desabilitadas.');
+    // Carrega os dados mesmo em modo offline
+    loadInitialData({ uid: 'offline_user' });
     return;
   }
 
@@ -120,10 +122,10 @@ function setupAuthObserver() {
   auth.onAuthStateChanged(async (user) => {
     if (user) {
       // Usuário está logado
-      await updateUserInfo(user);
-      loadInitialData(user);
       loginScreen.classList.add('hidden');
       appShell.classList.remove('hidden');
+      await updateUserInfo(user);
+      await loadInitialData(user);
     } else {
       // Usuário não está logado
       loginScreen.classList.remove('hidden');
@@ -148,6 +150,3 @@ if (showSignUpLink) {
     toggleSignUpMode(true);
   });
 }
-
-// Inicia o observador de autenticação
-setupAuthObserver();
