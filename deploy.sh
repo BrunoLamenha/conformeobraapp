@@ -33,9 +33,10 @@ fi
 echo "✅ Arquivo firebase.json encontrado"
 echo ""
 
-# Verificar se existe arquivos necessários
-if [ ! -f "public/index.html" ]; then
-    echo "❌ Erro: public/index.html não encontrado!"
+# Verificar se o diretório de deploy (docs) e o index.html existem
+if [ ! -d "docs" ] || [ ! -f "docs/index.html" ]; then
+    echo "❌ Erro: Pasta 'docs' ou 'docs/index.html' não encontrada!"
+    echo "Certifique-se de que todos os arquivos do aplicativo estão dentro da pasta 'docs'."
     exit 1
 fi
 

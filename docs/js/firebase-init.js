@@ -70,7 +70,6 @@ export function initFirebase() {
 
   if (!firebaseDb) {
     firebaseDb = window.firebase.firestore();
-    if (window.firebase.functions) functions = window.firebase.functions();
     functions = window.firebase.functions();
     firebaseAuth = window.firebase.auth(); // Inicializa Firebase Auth aqui
     
@@ -284,7 +283,6 @@ export async function loadCollection(collectionName, options = {}) {
 
   try {
     // Usar a instância de auth inicializada globalmente
-    const auth = getAuth(); 
     const auth = getAuth();
     const user = auth.currentUser;
 
