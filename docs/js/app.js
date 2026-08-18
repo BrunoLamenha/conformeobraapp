@@ -6,7 +6,7 @@ import { initReformasModule } from './modules/reformas.js';
 import { initProjetosModule } from './modules/projetos.js';
 import { initPessoasModule } from './modules/pessoas.js';
 import { initDashboardsModule } from './modules/dashboards.js';
-import { initCalendarioModule } from './modules/calendario.js';
+import { initCronogramaModule, initCalendarioModule } from './modules/cronograma.js';
 import { initChecklistModule } from './modules/checklist.js';
 import { initUsuariosModule } from './modules/usuarios.js';
 import { initPendenciasModule } from './modules/pendencias.js';
@@ -75,6 +75,7 @@ function activateView(viewId) {
       orcamentos: 'Orçamentos',
       cadastro: 'Cadastro',
       search: 'Pesquisa',
+      cronograma: 'Cronograma',
       modules: 'Módulos',
       managerDashboard: 'Dashboard Gerencial',
       settings: 'Configurações'
@@ -459,6 +460,7 @@ initReformasModule();
 initProjetosModule();
 initPessoasModule();
 initDashboardsModule();
+initCronogramaModule();
 initCalendarioModule();
 initChecklistModule();
 initUsuariosModule();

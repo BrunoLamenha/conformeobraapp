@@ -1,4 +1,4 @@
-import { loadCollection, saveDocument } from '../firebase-init.js';
+import { loadCollection, saveDocument, updateDocument } from '../firebase-init.js';
 import { showToast } from '../utils/toast.js';
 
 const roomCatalog = {
@@ -59,7 +59,8 @@ const roomCatalog = {
       pintura: ['Pintura externa', 'Proteção', 'Selador'],
       acabamento: ['Portões', 'Grades', 'Mobiliário']
     }
-  },
+  }
+};
 
 const disciplineLabels = {
   hidraulica: 'Hidráulica',
@@ -68,6 +69,9 @@ const disciplineLabels = {
   pintura: 'Pintura',
   acabamento: 'Acabamento'
 };
+
+let allReformas = []; // Cache para as reformas carregadas
+let currentReforma = null; // Armazena a reforma selecionada para vistoria
 
 function buildChecklistFromSelection(selection) {
   return Object.entries(selection)
@@ -123,31 +127,38 @@ function renderReformas(items) {
 
   if (!list || !summary) return;
 
-  const normalized = Array.isArray(items) && items.length ? items : [
-    { titulo: 'Reforma de suíte', status: 'alerta', percentual: 72, prazo: '3 dias restantes' },
-    { titulo: 'Reforma de banheiro', status: 'pendente', percentual: 42, prazo: 'Em execução' },
-    { titulo: 'Acabamento de cozinha', status: 'ok', percentual: 100, prazo: 'Concluído' }
-  ];
+  allReformas = items; // Armazena os dados carregados no cache
 
+  const normalized = Array.isArray(items) && items.length ? items : [];
   const concluido = normalized.filter((item) => item.status === 'ok').length;
   const alerta = normalized.filter((item) => item.status === 'alerta').length;
   const pendente = normalized.filter((item) => item.status === 'pendente').length;
 
   list.innerHTML = normalized
-    .map(
-      (item) => `
-        <li>
+    .map((item) => {
+      // Calcula o percentual de conclusão real
+      const totalItens = item.checklistGerado?.length || 0;
+      const itensConcluidos = (item.checklistGerado || []).filter(
+        (checklistItem) => checklistItem.status === 'conforme'
+      ).length;
+      const percentual = totalItens > 0 ? Math.round((itensConcluidos / totalItens) * 100) : 0;
+
+      return `
+        <li class="clickable" data-reforma-id="${item.id}">
           <div>
             <strong>${item.titulo || 'Etapa de reforma'}</strong>
             <small>${item.prazo || 'Prazo em revisão'}</small>
           </div>
+          <div class="list-item-actions">
+            <button class="tertiary-btn edit-reforma-btn" data-reforma-id="${item.id}">Editar</button>
+          </div>
           <div class="progress-wrap">
-            <span>${item.percentual || 0}%</span>
-            <div class="progress-bar"><i style="width:${item.percentual || 0}%"></i></div>
+            <span>${percentual}%</span>
+            <div class="progress-bar"><i style="width:${percentual}%"></i></div>
           </div>
         </li>
-      `
-    )
+      `;
+    })
     .join('');
 
   summary.innerHTML = `
@@ -157,10 +168,54 @@ function renderReformas(items) {
   `;
 }
 
+function renderReformaVistoria(reforma) {
+  const container = document.getElementById('reformaVistoriaList');
+  const title = document.getElementById('reformaVistoriaTitle');
+  const form = document.getElementById('reformaVistoriaForm');
+  if (!container || !title || !form) return;
+
+  currentReforma = reforma; // Armazena a reforma atual
+  title.textContent = reforma.titulo;
+
+  if (!reforma.checklistGerado || reforma.checklistGerado.length === 0) {
+    container.innerHTML = '<div class="empty-state">Esta reforma não possui um checklist.</div>';
+    form.querySelector('button[type="submit"]').style.display = 'none';
+    return;
+  }
+
+  form.querySelector('button[type="submit"]').style.display = 'block';
+  container.innerHTML = reforma.checklistGerado.map((item, index) => `
+      <div class="inspection-item" data-item-id="${index}">
+        <div class="inspection-item-header">
+          <div>
+            <strong>${item.room}</strong>
+            <small>${item.disciplina}</small>
+          </div>
+          <span class="status-badge pendente">Qtd: ${item.quantidade}</span>
+        </div>
+        <div><small>${item.item}</small></div>
+        <label>
+          Status
+          <select name="status-${index}" data-item-status>
+            <option value="pendente" ${item.status === 'pendente' ? 'selected' : ''}>Pendente</option>
+            <option value="conforme" ${item.status === 'conforme' ? 'selected' : ''}>Conforme</option>
+            <option value="nao-aplica" ${item.status === 'nao-aplica' ? 'selected' : ''}>Não se aplica</option>
+          </select>
+        </label>
+        <label>
+          Observação
+          <textarea name="observacao-${index}" rows="2" placeholder="Descreva observação...">${item.observacao || ''}</textarea>
+        </label>
+      </div>
+    `).join('');
+}
+
 export function initReformasModule() {
   const card = document.getElementById('reformasView');
   const form = document.getElementById('reformaForm');
   const preview = document.getElementById('reformaChecklistPreview');
+  const reformasList = document.getElementById('reformasList');
+  const vistoriaForm = document.getElementById('reformaVistoriaForm');
 
   if (!card) return;
   card.dataset.module = 'reformas';
@@ -170,6 +225,46 @@ export function initReformasModule() {
       .then((items) => renderReformas(items))
       .catch(() => renderReformas([]));
   };
+
+  if (reformasList) {
+    reformasList.addEventListener('click', (e) => {
+      const editButton = e.target.closest('.edit-reforma-btn');
+      if (editButton) {
+        e.stopPropagation(); // Impede que o clique para vistoria seja acionado
+        const reformaId = editButton.dataset.reformaId;
+        const reforma = allReformas.find(r => r.id === reformaId);
+        if (reforma) {
+          // Preenche o formulário principal para edição
+          form.dataset.editId = reforma.id; // Marca o formulário como "modo de edição"
+          form.querySelector('#reformaFormEmpreendimentoSelect').value = reforma.empreendimentoId;
+          // Dispara o evento 'change' para carregar as unidades
+          form.querySelector('#reformaFormEmpreendimentoSelect').dispatchEvent(new Event('change'));
+          
+          // Aguarda um pouco para o select de unidades ser populado
+          setTimeout(() => {
+            form.querySelector('#reformaFormUnidadeSelect').value = reforma.unidadeId;
+          }, 100);
+
+          form.querySelector('#reformaFormResponsavelSelect').value = reforma.responsavelId;
+          form.querySelector('input[name="prazo"]').value = reforma.prazo;
+          form.querySelector('button[type="submit"]').textContent = 'Salvar Alterações';
+          form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        // Lógica existente para carregar a vistoria
+        const listItem = e.target.closest('li[data-reforma-id]');
+        if (!listItem) return;
+
+        const reformaId = listItem.dataset.reformaId;
+        const reforma = allReformas.find(r => r.id === reformaId);
+
+        if (reforma) {
+          renderReformaVistoria(reforma);
+          vistoriaForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    });
+  }
 
   if (form) {
     const roomInputs = form.querySelectorAll('[data-room]');
@@ -194,6 +289,7 @@ export function initReformasModule() {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const submitButton = form.querySelector('button[type="submit"]');
+      const editId = form.dataset.editId;
       submitButton.disabled = true;
       submitButton.textContent = 'Salvando...';
 
@@ -211,29 +307,45 @@ export function initReformasModule() {
         });
 
         const checklistGerado = buildChecklistFromSelection(selection);
-        const payload = {
-          empreendimentoId: formData.get('empreendimentoId'),
-          unidadeId: formData.get('unidadeId'),
-          // Para manter a compatibilidade com outras partes do app que usam 'obra'
-          obra: form.querySelector('#reformaFormEmpreendimentoSelect option:checked')?.textContent || 'Não informado',
-          titulo: `Reforma - ${form.querySelector('#reformaFormEmpreendimentoSelect option:checked')?.textContent || 'obra'}`,
 
-          responsavelId: formData.get('responsavelId'),
-          responsavel: form.querySelector('#reformaFormResponsavelSelect option:checked')?.textContent || 'Não informado',
-          comodos: Object.entries(selection)
-            .filter(([, item]) => item.enabled)
-            .map(([roomKey, item]) => ({
-              room: roomCatalog[roomKey]?.label || roomKey,
-              quantidade: item.quantidade || 1
-            })),
-          checklistGerado, // O checklist gerado é incluído no payload para ser salvo no Firestore/localStorage
-          status: 'pendente',
-          percentual: 20,
-          prazo: formData.get('prazo') || 'A definir'
-        };
+        if (editId) {
+          // --- MODO DE EDIÇÃO ---
+          const payload = {
+            empreendimentoId: formData.get('empreendimentoId'),
+            unidadeId: formData.get('unidadeId'),
+            obra: form.querySelector('#reformaFormEmpreendimentoSelect option:checked')?.textContent || 'Não informado',
+            titulo: `Reforma - ${form.querySelector('#reformaFormEmpreendimentoSelect option:checked')?.textContent || 'obra'}`,
+            responsavelId: formData.get('responsavelId'),
+            responsavel: form.querySelector('#reformaFormResponsavelSelect option:checked')?.textContent || 'Não informado',
+            prazo: formData.get('prazo') || 'A definir'
+          };
+          await updateDocument('reformas', editId, payload);
+          showToast('Reforma atualizada com sucesso!', 'success');
+          delete form.dataset.editId; // Limpa o modo de edição
+        } else {
+          // --- MODO DE CRIAÇÃO ---
+          const payload = {
+            empreendimentoId: formData.get('empreendimentoId'),
+            unidadeId: formData.get('unidadeId'),
+            obra: form.querySelector('#reformaFormEmpreendimentoSelect option:checked')?.textContent || 'Não informado',
+            titulo: `Reforma - ${form.querySelector('#reformaFormEmpreendimentoSelect option:checked')?.textContent || 'obra'}`,
+            responsavelId: formData.get('responsavelId'),
+            responsavel: form.querySelector('#reformaFormResponsavelSelect option:checked')?.textContent || 'Não informado',
+            comodos: Object.entries(selection)
+              .filter(([, item]) => item.enabled)
+              .map(([roomKey, item]) => ({
+                room: roomCatalog[roomKey]?.label || roomKey,
+                quantidade: item.quantidade || 1
+              })),
+            checklistGerado,
+            status: 'pendente',
+            percentual: 0,
+            prazo: formData.get('prazo') || 'A definir'
+          };
+          await saveDocument('reformas', payload);
+          showToast('Reforma salva com sucesso!', 'success');
+        }
 
-        await saveDocument('reformas', payload);
-        showToast('Reforma salva com sucesso!', 'success');
         form.reset();
         if (preview) renderChecklistPreview({});
         refresh();
@@ -242,7 +354,51 @@ export function initReformasModule() {
         console.error('Erro ao salvar reforma:', error);
       } finally {
         submitButton.disabled = false;
-        submitButton.textContent = 'Salvar reforma';
+        submitButton.textContent = 'Salvar Reforma';
+      }
+    });
+  }
+
+  if (vistoriaForm) {
+    vistoriaForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentReforma) {
+        showToast('Nenhuma reforma selecionada para vistoriar.', 'error');
+        return;
+      }
+
+      const submitButton = vistoriaForm.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Salvando...';
+
+      try {
+        const updatedChecklist = currentReforma.checklistGerado.map((item, index) => {
+          const status = vistoriaForm.querySelector(`[name="status-${index}"]`)?.value;
+          const observacao = vistoriaForm.querySelector(`[name="observacao-${index}"]`)?.value;
+          return { ...item, status, observacao };
+        });
+
+        // Recalcula o percentual e o status geral da reforma
+        const totalItens = updatedChecklist.length;
+        const itensConcluidos = updatedChecklist.filter(i => i.status === 'conforme').length;
+        const percentual = totalItens > 0 ? Math.round((itensConcluidos / totalItens) * 100) : 0;
+        const status = percentual === 100 ? 'ok' : (percentual > 0 ? 'alerta' : 'pendente');
+
+        const payload = {
+          checklistGerado: updatedChecklist,
+          percentual,
+          status,
+        };
+
+        await updateDocument('reformas', currentReforma.id, payload);
+        showToast('Vistoria da reforma salva com sucesso!', 'success');
+        refresh(); // Atualiza a lista de reformas para refletir o novo percentual
+      } catch (error) {
+        showToast('Erro ao salvar a vistoria da reforma.', 'error');
+        console.error('Erro ao salvar vistoria da reforma:', error);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Salvar vistoria';
       }
     });
   }
