@@ -109,17 +109,6 @@ function toggleSignUpMode(isSigningUp) {
  * Observa mudanças no estado de autenticação do usuário.
  */
 export function setupAuth() {
-  if (!isFirebaseConfigured()) {
-    // Se o Firebase não estiver configurado, esconde a tela de login e mostra o app
-    // para permitir o uso em modo offline.
-    loginScreen.classList.add('hidden');
-    appShell.classList.remove('hidden');
-    console.warn('App em modo offline. Funcionalidades de login e sincronização desabilitadas.');
-    // Carrega os dados mesmo em modo offline
-    loadInitialData({ uid: 'offline_user' });
-    return;
-  }
-
   // Melhoria: Processa o resultado do login após o redirecionamento.
   // Isso é necessário para que o signInWithRedirect funcione.
   processRedirectResult();
