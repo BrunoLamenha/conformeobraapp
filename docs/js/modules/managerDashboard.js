@@ -1,10 +1,6 @@
 import { loadCollection } from '../firebase-init.js';
 import { populateEmpreendimentoSelect } from './empreendimentos.js';
 
-// --- CONFIGURAÇÃO DA API OPENWEATHERMAP ---
-const OPENWEATHER_API_KEY = 'SUA_CHAVE_AQUI'; // <-- SUBSTITUA PELA SUA CHAVE DE API
-const DEFAULT_CITY_COUNTRY = 'São Paulo, BR'; // Cidade padrão para a previsão
-
 function formatCurrency(value) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 }
@@ -14,7 +10,7 @@ let allData = {
   pendencias: [],
   usuarios: [],
   empreendimentos: [],
-  weather: null, // Novo campo para dados do tempo
+  // weather: null, // Campo removido para dados do tempo
 };
 
 const disciplineLabels = {
@@ -31,52 +27,16 @@ const disciplineLabels = {
  * Carrega todos os dados necessários de uma vez.
  */
 async function loadDashboardData() {
-  const [reformas, pendencias, usuarios, empreendimentos, orcamentos, weatherData] = await Promise.all([
+  const [reformas, pendencias, usuarios, empreendimentos, orcamentos] = await Promise.all([
     loadCollection('reformas'),
     loadCollection('pendencias'),
     loadCollection('users'), // Supondo que a coleção de usuários se chame 'users'
     loadCollection('empreendimentos'),
     loadCollection('orcamentos'),
-    fetchWeatherData(document.getElementById('weatherCityInput')?.value || DEFAULT_CITY_COUNTRY), // Busca dados do tempo
   ]);
 
-  allData = { reformas, pendencias, usuarios, empreendimentos, orcamentos, weather: weatherData };
+  allData = { reformas, pendencias, usuarios, empreendimentos, orcamentos }; // Remove weatherData
   return allData;
-}
-
-/**
- * Busca dados de previsão do tempo da OpenWeatherMap API.
- * @param {string} cityCountry - Cidade e país (ex: "São Paulo, BR").
- * @returns {object|null} Dados do tempo ou null em caso de erro.
- */
-async function fetchWeatherData(cityCountry) {
-  if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'SUA_CHAVE_AQUI') {
-    console.warn("Chave da API OpenWeatherMap não configurada. Previsão do tempo desativada.");
-    return null;
-  }
-
-  try {
-    const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${cityCountry}&appid=${OPENWEATHER_API_KEY}&units=metric&lang=pt_br`
-    );
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar previsão: ${response.statusText}`);
-    }
-    const data = await response.json();
-
-    // Para simplificar, vamos pegar apenas os dados atuais.
-    // Para previsão de 5 dias, a API é diferente (forecast).
-    return {
-      temp: Math.round(data.main.temp),
-      description: data.weather[0].description,
-      icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`,
-      city: data.name,
-    };
-  } catch (error) {
-    console.error("Erro ao buscar dados do tempo:", error);
-    showToast(`Não foi possível carregar a previsão do tempo para ${cityCountry}.`, 'error');
-    return null;
-  }
 }
 
 /**
@@ -285,25 +245,6 @@ function renderDashboard() {
     </div>
     
     <div class="module-panel full-width">
-      <h3>Previsão do Tempo</h3>
-      <div id="weatherDisplay" class="weather-display">
-        ${allData.weather ? `
-          <div class="weather-current">
-            <img src="${allData.weather.icon}" alt="${allData.weather.description}" class="weather-icon" />
-            <div>
-              <span class="weather-temp">${allData.weather.temp}°C</span>
-              <p class="weather-description">${allData.weather.description}</p>
-              <small>${allData.weather.city}</small>
-            </div>
-          </div>
-          <!-- Poderíamos adicionar um forecast de 5 dias aqui se usarmos a API de forecast -->
-        ` : `
-          <p class="empty-state">Previsão do tempo não disponível. Verifique sua chave de API ou a cidade.</p>
-        `}
-      </div>
-    </div>
-
-    <div class="module-panel full-width">
       <h3>Progresso por Serviço</h3>
       <div class="bar-chart-container">
         ${serviceChartHTML.length > 0 ? serviceChartHTML : '<p class="empty-state">Nenhum dado de serviço para exibir.</p>'}
@@ -335,13 +276,6 @@ export function initManagerDashboardModule() {
   const filters = view.querySelectorAll('select');
 
   const initialize = async () => {
-    // Adiciona listener para o input da cidade do tempo
-    const weatherCityInput = document.getElementById('weatherCityInput');
-    if (weatherCityInput) {
-      weatherCityInput.removeEventListener('change', initialize); // Evita duplicidade
-      weatherCityInput.addEventListener('change', initialize);
-    }
-
     await loadDashboardData();
     populateFilters();
     renderDashboard();
