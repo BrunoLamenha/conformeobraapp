@@ -40,6 +40,12 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Ignora requisições que não são GET e requisições para a API do Firebase.
+  // Isso previne o erro "Request method 'POST' is unsupported".
+  if (event.request.method !== 'GET' || event.request.url.includes('firestore.googleapis.com')) {
+    return; // Deixa o navegador lidar com a requisição normalmente.
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -53,8 +59,7 @@ self.addEventListener('fetch', event => {
           // Verifica se a resposta é válida e se a requisição é GET antes de cachear.
           // Isso evita o erro com requisições POST.
           if (
-            !networkResponse ||
-            networkResponse.status !== 200 ||
+            !networkResponse || networkResponse.status !== 200 ||
             networkResponse.type !== 'basic' ||
             event.request.method !== 'GET'
           ) {
