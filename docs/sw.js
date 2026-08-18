@@ -7,8 +7,8 @@ const urlsToCache = [
   '/css/wizard.css',
   '/js/app.js',
   '/js/auth.js',
-  '/js/firebase-init.js',
   '/js/whatsapp-share.js',
+  '/js/supabase-init.js',
   // Otimização: Adiciona os módulos ao cache para carregamentos futuros mais rápidos.
   '/js/modules/cadastro.js',
   '/js/modules/checklist.js',
@@ -41,8 +41,8 @@ self.addEventListener('install', event => {
 
 self.addEventListener('fetch', event => {
   // Ignora requisições que não são GET e requisições para a API do Firebase.
-  // Isso previne o erro "Request method 'POST' is unsupported".
-  if (event.request.method !== 'GET' || event.request.url.includes('firestore.googleapis.com')) {
+  // Isso previne o erro "Request method 'POST' is unsupported" com as APIs do Supabase.
+  if (event.request.method !== 'GET' || event.request.url.includes('.supabase.co')) {
     return; // Deixa o navegador lidar com a requisição normalmente.
   }
 

@@ -1,4 +1,4 @@
-import { initSupabase, getSupabase } from './supabase-init.js';
+import { initSupabase, getSupabase, loadCollection, saveDocument } from './supabase-init.js';
 import { setupSyncStatus } from './modules/syncStatus.js';
 import { setupAuth } from './auth.js';
 
@@ -149,8 +149,8 @@ async function handleSearch(event) {
 /**
  * Executa a lógica de busca após o debounce.
  */
-async function performSearch(searchTerm) {
-  const searchTerm = event.target.value.trim().toLowerCase();
+async function performSearch(term) {
+  const searchTerm = term.trim().toLowerCase();
 
   if (!searchResults) return;
 

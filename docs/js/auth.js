@@ -32,7 +32,12 @@ async function handleEmailLogin(event) {
   try {
     if (isSignUpMode) {
       // Modo de Cadastro
-      const { error } = await supabase.auth.signUp({ email, password });
+      // Adiciona o nome completo aos metadados para o gatilho do BD usar.
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: 'Novo Usuário' } } // Nome padrão
+      });
       if (error) throw error;
       showToast('Usuário cadastrado com sucesso! Faça o login.', 'success');
       // Volta para o modo de login

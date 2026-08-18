@@ -1,5 +1,5 @@
-import { loadCollection, saveDocument, getFunctions } from '../firebase-init.js';
-import { showToast } from '../utils/toast.js'; // Caminho padronizado
+import { loadCollection, getSupabase } from '../supabase-init.js';
+import { showToast } from '../utils/toast.js';
 
 /**
  * Popula um elemento <select> com os usuários carregados.
@@ -26,8 +26,9 @@ async function loadAndRenderUsers() {
   if (!userList) return;
   userList.innerHTML = '<li>Carregando usuários...</li>';
 
-  try {
-    const users = await loadCollection('users');
+  try { 
+    // No Supabase, os dados de perfil estão na tabela 'profiles'.
+    const users = await loadCollection('profiles');
     renderUsersList(users);
 
     // Popula os selects de responsável nos outros módulos
@@ -52,10 +53,10 @@ function renderUsersList(users) {
   userList.innerHTML = users.map(user => `
     <li data-user-id="${user.id}">
       <div>
-        <strong>${user.name || 'Nome não definido'}</strong>
+        <strong>${user.full_name || 'Nome não definido'}</strong>
         <small>${user.email || 'sem e-mail'}</small>
       </div>
-      <small>${user.companyName || 'N/A'} - ${user.role || 'user'}</small>
+      <small>${user.role || 'user'}</small>
     </li>
   `).join('');
 }
@@ -79,34 +80,40 @@ async function handleSaveUser(e) {
   const formData = new FormData(userForm);
 
   const payload = {
-    name: formData.get('nome'),
-    companyId: formData.get('empresa'),
     email: formData.get('email'),
+    companyId: formData.get('empresa'),
     role: formData.get('perfil'),
+    full_name: formData.get('nome'),
   };
 
   try {
-    // 1. Chama a Cloud Function para criar o usuário no Auth e definir suas permissões.
-    const functions = getFunctions();
-    const setUserClaims = functions.httpsCallable('setUserClaims');
-    const result = await setUserClaims(payload);
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client não está disponível.");
 
-    if (!result.data.success) {
-      throw new Error(result.data.message || 'A função na nuvem retornou um erro.');
-    }
+    // Correção de Segurança: Chama a Edge Function para convidar o usuário.
+    // A chave de admin nunca é exposta no cliente.
+    const { data, error } = await supabase.functions.invoke('invite-user', {
+      body: {
+        email: payload.email,
+        options: {
+          data: {
+            full_name: payload.full_name,
+            company_id: payload.companyId,
+            role: payload.role,
+          }
+        }
+      },
+    });
 
-    // 2. Salva os detalhes do usuário na coleção 'users' do Firestore.
-    // O UID vem da resposta da Cloud Function.
-    const userDocPayload = { ...payload, uid: result.data.uid };
-    await saveDocument('users', userDocPayload);
+    if (error) throw error;
 
-    showToast(`Usuário ${payload.name} criado com sucesso!`, 'success');
+    showToast(`Convite enviado para ${payload.email}!`, 'success');
     userForm.reset();
     loadAndRenderUsers();
   } catch (error) {
     console.error('Erro ao salvar usuário:', error);
-    const errorMessage = error.message.includes('permission-denied')
-      ? 'Você não tem permissão para criar usuários.'
+    const errorMessage = error.message.includes('permission')
+      ? 'Você não tem permissão para convidar usuários.'
       : 'Erro ao criar usuário. Verifique o console para detalhes.';
     showToast(errorMessage, 'error');
   } finally {
