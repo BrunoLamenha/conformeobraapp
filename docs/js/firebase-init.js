@@ -45,6 +45,7 @@ export function isFirebaseConfigured() {
 
 let firebaseDb = null;
 let functions = null;
+let firebaseAuth = null;
 
 export function initFirebase() {
   if (!hasFirebase) {
@@ -70,6 +71,7 @@ export function initFirebase() {
   if (!firebaseDb) {
     firebaseDb = window.firebase.firestore();
     if (window.firebase.functions) functions = window.firebase.functions();
+    functions = window.firebase.functions();
     firebaseAuth = window.firebase.auth(); // Inicializa Firebase Auth aqui
     
     // Habilitar persistência offline
@@ -98,6 +100,13 @@ export function getFunctions() {
     initFirebase(); // Garante que o Firebase Functions seja inicializado
   }
   return functions;
+}
+
+export function getAuth() {
+  if (!firebaseAuth && isFirebaseConfigured()) {
+    initFirebase();
+  }
+  return firebaseAuth;
 }
 
 // Adicionar listener de sincronização em tempo real
@@ -276,6 +285,7 @@ export async function loadCollection(collectionName, options = {}) {
   try {
     // Usar a instância de auth inicializada globalmente
     const auth = getAuth(); 
+    const auth = getAuth();
     const user = auth.currentUser;
 
     let collectionRef = db.collection(collectionName);
