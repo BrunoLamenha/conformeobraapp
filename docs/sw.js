@@ -26,16 +26,6 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Ignora requisições que não são GET (como POST para o Firestore)
-  if (event.request.method !== 'GET') {
-    return;
-  }
-
-  // Ignora requisições para o Firebase para evitar problemas de cache com dados dinâmicos
-  if (event.request.url.includes('firestore.googleapis.com')) {
-    return;
-  }
-
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -43,14 +33,30 @@ self.addEventListener('fetch', event => {
         if (response) {
           return response;
         }
-
-        // Se não, busca na rede, retorna e armazena no cache para uso futuro
-        return fetch(event.request).then(
-          networkResponse => {
-            // Não é necessário clonar e colocar no cache aqui para uma estratégia simples
-            return networkResponse;
+ 
+        // Se não encontrar no cache, busca na rede.
+        return fetch(event.request).then(networkResponse => {
+          // Verifica se a resposta é válida e se a requisição é GET antes de cachear.
+          // Isso evita o erro com requisições POST.
+          if (
+            !networkResponse ||
+            networkResponse.status !== 200 ||
+            networkResponse.type !== 'basic' ||
+            event.request.method !== 'GET'
+          ) {
+            return networkResponse; // Retorna a resposta da rede sem cachear.
           }
-        );
+ 
+          // Clona a resposta. Uma resposta só pode ser consumida uma vez.
+          // Precisamos de uma cópia para o cache e outra para o navegador.
+          const responseToCache = networkResponse.clone();
+ 
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+ 
+          return networkResponse;
+        });
       })
   );
 });

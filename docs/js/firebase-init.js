@@ -166,51 +166,42 @@ export async function syncPendingWrites() {
   const db = initFirebase();
   if (!db) return; // Se não há firebase, não há o que sincronizar
 
-  const syncQueueKey = 'conformeobras:sync_queue';
-  const pendingWrites = JSON.parse(localStorage.getItem(syncQueueKey) || '[]');
+  const syncQueueKey = "conformeobras:sync_queue";
+  let pendingWrites = JSON.parse(localStorage.getItem(syncQueueKey) || "[]");
 
   if (pendingWrites.length === 0) {
-    console.log('Nenhuma escrita pendente para sincronizar.');
-    updateSyncStatus('online');
+    console.log("Nenhuma escrita pendente para sincronizar.");
+    updateSyncStatus("online");
     return;
   }
 
   console.log(`Sincronizando ${pendingWrites.length} escritas pendentes...`);
-  
 
-  // Limpa a fila local primeiro para evitar reprocessamento em caso de falha parcial
-  localStorage.setItem(syncQueueKey, JSON.stringify([]));
+  while (pendingWrites.length > 0) {
+    const write = pendingWrites[0]; // Pega o primeiro item da fila
 
-  const failedWrites = [];
-
-  for (const write of pendingWrites) {
     try {
-      if (write.type === 'update' && write.docId) {
+      if (write.type === "update" && write.docId) {
         await db.collection(write.collectionName).doc(write.docId).update(write.payload);
-      } else if (write.type === 'delete' && write.docId) {
+      } else if (write.type === "delete" && write.docId) {
         await db.collection(write.collectionName).doc(write.docId).delete();
       } else {
-        // Assume 'add' como padrão para compatibilidade com a versão anterior
-        // For 'add' operations, the payload already contains the ID if generated locally
         await db.collection(write.collectionName).add(write.payload);
       }
       console.log(`✅ Item da coleção '${write.collectionName}' sincronizado com sucesso.`);
+      // Remove o item da fila APÓS o sucesso
+      pendingWrites.shift();
+      localStorage.setItem(syncQueueKey, JSON.stringify(pendingWrites));
     } catch (error) {
-      console.error(`❌ Falha ao sincronizar item para '${write.collectionName}'. Adicionando de volta à fila.`, error);
-      failedWrites.push(write);
+      console.error(`❌ Falha ao sincronizar item para '${write.collectionName}'. Tentando novamente mais tarde.`, error);
+      // Se falhar, interrompe o loop. O item permanece na fila para a próxima tentativa.
+      updateSyncStatus("offline"); // Indica que a sincronização falhou
+      return;
     }
   }
 
-  // Se houver falhas, adiciona os itens de volta à fila para a próxima tentativa
-  if (failedWrites.length > 0) {
-    const remainingWrites = JSON.parse(localStorage.getItem(syncQueueKey) || '[]');
-    localStorage.setItem(syncQueueKey, JSON.stringify([...remainingWrites, ...failedWrites]));
-    console.warn(`${failedWrites.length} itens não puderam ser sincronizados e foram mantidos na fila.`);
-  } else {
-    console.log('🎉 Sincronização concluída com sucesso!');
-    // Apenas muda para 'online' se não houver falhas.
-    updateSyncStatus('online');
-  }
+  console.log("🎉 Sincronização concluída com sucesso!");
+  updateSyncStatus("online");
 }
 
 function generateId() {
