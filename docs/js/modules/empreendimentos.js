@@ -1,5 +1,5 @@
 import { loadCollection, saveDocument } from '../firebase-init.js';
-import { showToast } from '../utils/toast.js'; // Caminho corrigido para a nova estrutura
+import { showToast } from '../utils/toast.js'; // Caminho padronizado
 import { populateCompanySelect } from './cadastro.js';
 
 let allEmpreendimentos = []; // Armazena os empreendimentos carregados

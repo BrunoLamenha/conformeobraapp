@@ -1,6 +1,6 @@
 import { loadCollection, saveDocument, updateDocument } from '../firebase-init.js';
-import { showToast } from '../utils/toast.js'; // Caminho corrigido para a nova estrutura
-import { isHoliday } from '../data/holidays.js'; // Caminho corrigido para a nova estrutura
+import { showToast } from '../utils/toast.js'; // Caminho padronizado
+import { isHoliday } from '../data/holidays.js'; // Caminho padronizado
 import { populateEmpreendimentoSelect } from './empreendimentos.js'; // Importa a função para popular empreendimentos
  
 let currentOrcamento = null;

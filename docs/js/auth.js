@@ -1,6 +1,6 @@
 import { getAuth, isFirebaseConfigured } from './firebase-init.js';
 import { updateUserInfo, loadInitialData } from './app.js';
-import { showToast } from './utils/toast.js';
+import { showToast } from './utils/toast.js'; // Caminho padronizado
 
 // Elementos da UI
 const loginScreen = document.getElementById('loginScreen');
@@ -151,4 +151,3 @@ if (showSignUpLink) {
 
 // Inicia o observador de autenticação
 setupAuthObserver();
-
