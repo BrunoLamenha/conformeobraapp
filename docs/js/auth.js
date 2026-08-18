@@ -59,11 +59,12 @@ async function handleGoogleLogin() {
   const provider = new window.firebase.auth.GoogleAuthProvider();
 
   try {
-    await auth.signInWithPopup(provider);
-    // O onAuthStateChanged vai cuidar de mostrar o app.
+    // Melhoria: Usar signInWithRedirect para uma melhor experiência em mobile e para evitar avisos de COOP.
+    // O usuário será redirecionado para a página do Google e depois voltará para o app.
+    await auth.signInWithRedirect(provider);
   } catch (error) {
     console.error('Erro no login com Google:', error);
-    showToast(`Erro no login com Google: ${error.message}`, 'error');
+    showToast(`Erro ao iniciar login com Google: ${error.message}`, 'error');
   }
 }
 
@@ -119,6 +120,10 @@ export function setupAuth() {
     return;
   }
 
+  // Melhoria: Processa o resultado do login após o redirecionamento.
+  // Isso é necessário para que o signInWithRedirect funcione.
+  processRedirectResult();
+
   const auth = getAuth();
   auth.onAuthStateChanged(async (user) => {
     if (user) {
@@ -145,6 +150,25 @@ export function setupAuth() {
   });
 }
 
+/**
+ * Processa o resultado do login após o redirecionamento do Google.
+ * Deve ser chamado antes de onAuthStateChanged.
+ */
+async function processRedirectResult() {
+  const auth = getAuth();
+  try {
+    // getRedirectResult só retorna um resultado na página para a qual o usuário foi redirecionado.
+    // Em outras cargas de página, retorna null.
+    const result = await auth.getRedirectResult();
+    if (result.user) {
+      // O usuário acabou de fazer login ou se cadastrar.
+      showToast(`Bem-vindo, ${result.user.displayName}!`, 'success');
+    }
+  } catch (error) {
+    console.error('Erro ao processar o redirecionamento do login:', error);
+    showToast(`Erro no login: ${error.message}`, 'error');
+  }
+}
 // Adiciona os event listeners aos elementos da UI
 if (loginForm) {
   loginForm.addEventListener('submit', handleEmailLogin);

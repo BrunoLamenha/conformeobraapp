@@ -71,7 +71,7 @@ export function initFirebase() {
   if (!firebaseDb) {
     firebaseDb = window.firebase.firestore();
     functions = window.firebase.functions();
-    firebaseAuth = window.firebase.auth(); // Inicializa Firebase Auth aqui
+    firebaseAuth = window.firebase.auth();
     
     // Habilitar persistência offline
     try {
@@ -103,7 +103,7 @@ export function getFunctions() {
 
 export function getAuth() {
   if (!firebaseAuth && isFirebaseConfigured()) {
-    initFirebase();
+    firebaseAuth = window.firebase.auth();
   }
   return firebaseAuth;
 }
