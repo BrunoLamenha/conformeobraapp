@@ -984,8 +984,9 @@ h1 {
 }
 
 .nav-bottom-item .icon {
-  font-size: 1.5rem;
   display: block;
+  width: 24px; /* Tamanho fixo para os ícones SVG */
+  height: 24px;
 }
 
 .nav-bottom-item span:last-child {
@@ -1195,7 +1196,9 @@ h1 {
 }
 
 .module-tile .icon {
-  font-size: 28px;
+  width: 32px; /* Tamanho fixo para os ícones SVG */
+  height: 32px;
+  color: var(--primary); /* Cor primária para os ícones */
 }
 
 /* MODAL OVERLAY */
