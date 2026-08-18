@@ -5,6 +5,7 @@ import { showToast } from './utils/toast.js'; // Caminho padronizado
 // Elementos da UI
 const loginScreen = document.getElementById('loginScreen');
 const appShell = document.getElementById('appShell');
+const loadingOverlay = document.getElementById('loadingOverlay'); // Pega o novo elemento
 const loginForm = document.getElementById('loginForm');
 const googleLoginBtn = document.getElementById('googleLoginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -121,15 +122,25 @@ export function setupAuth() {
   const auth = getAuth();
   auth.onAuthStateChanged(async (user) => {
     if (user) {
-      // Usuário está logado
+      // Usuário está logado.
+      // 1. Esconde a tela de login e mostra o overlay de carregamento.
       loginScreen.classList.add('hidden');
-      appShell.classList.remove('hidden');
+      loadingOverlay.classList.remove('hidden');
+      appShell.classList.add('hidden'); // Garante que o app principal está escondido.
+
+      // 2. Carrega as informações do usuário e os dados iniciais.
       await updateUserInfo(user);
       await loadInitialData(user);
+
+      // 3. Após tudo carregado, esconde o overlay e mostra o app.
+      loadingOverlay.classList.add('hidden');
+      appShell.classList.remove('hidden');
+
     } else {
-      // Usuário não está logado
+      // Usuário não está logado. Mostra a tela de login.
       loginScreen.classList.remove('hidden');
       appShell.classList.add('hidden');
+      loadingOverlay.classList.add('hidden');
     }
   });
 }

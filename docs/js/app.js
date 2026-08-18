@@ -396,37 +396,39 @@ export async function loadInitialData(user) {
   console.log("Carregando dados iniciais para o usuário:", user.uid);
   if (modulesInitialized) return;
 
-  // Importa e inicializa os módulos dinamicamente APENAS UMA VEZ.
-  const { initCadastroModule } = await import('./modules/cadastro.js');
-  const { initVistoriasModule } = await import('./modules/vistorias.js');
-  const { initRelatoriosModule } = await import('./modules/relatorios.js');
-  const { initOrcamentosModule } = await import('./modules/orcamentos.js');
-  const { initReformasModule } = await import('./modules/reformas.js');
-  const { initProjetosModule } = await import('./modules/projetos.js');
-  const { initPessoasModule } = await import('./modules/pessoas.js');
-  const { initDashboardsModule } = await import('./modules/dashboards.js');
-  const { initCronogramaModule, initCalendarioModule } = await import('./modules/cronograma.js');
-  const { initChecklistModule } = await import('./modules/checklist.js');
-  const { initUsuariosModule } = await import('./modules/usuarios.js');
-  const { initPendenciasModule } = await import('./modules/pendencias.js');
-  const { initEmpreendimentosModule } = await import('./modules/empreendimentos.js');
-  const { initManagerDashboardModule } = await import('./modules/managerDashboard.js');
+  // Otimização: Carrega todos os módulos em paralelo em vez de em sequência.
+  const moduleImports = [
+    import('./modules/cadastro.js'),
+    import('./modules/vistorias.js'),
+    import('./modules/relatorios.js'),
+    import('./modules/orcamentos.js'),
+    import('./modules/reformas.js'),
+    import('./modules/projetos.js'),
+    import('./modules/pessoas.js'),
+    import('./modules/dashboards.js'),
+    import('./modules/cronograma.js'),
+    import('./modules/checklist.js'),
+    import('./modules/usuarios.js'),
+    import('./modules/pendencias.js'),
+    import('./modules/empreendimentos.js'),
+    import('./modules/managerDashboard.js'),
+  ];
 
-  initCadastroModule();
-  initVistoriasModule();
-  initRelatoriosModule();
-  initOrcamentosModule();
-  initReformasModule();
-  initProjetosModule();
-  initPessoasModule();
-  initDashboardsModule();
-  initCronogramaModule();
-  initCalendarioModule();
-  initChecklistModule();
-  initUsuariosModule();
-  initPendenciasModule();
-  initEmpreendimentosModule();
-  initManagerDashboardModule();
+  try {
+    const modules = await Promise.all(moduleImports);
+
+    // Inicializa todos os módulos depois que eles foram carregados.
+    modules.forEach(module => {
+      // Itera sobre as exportações de cada módulo e chama as funções 'init'.
+      Object.values(module).forEach(initFunction => {
+        if (typeof initFunction === 'function' && initFunction.name.startsWith('init')) {
+          initFunction();
+        }
+      });
+    });
+  } catch (error) {
+    console.error("Falha ao carregar os módulos iniciais:", error);
+  }
 
   modulesInitialized = true;
   console.log("Todos os módulos foram inicializados.");

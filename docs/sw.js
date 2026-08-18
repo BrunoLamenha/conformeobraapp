@@ -9,10 +9,24 @@ const urlsToCache = [
   '/js/auth.js',
   '/js/firebase-init.js',
   '/js/whatsapp-share.js',
+  // Otimização: Adiciona os módulos ao cache para carregamentos futuros mais rápidos.
+  '/js/modules/cadastro.js',
+  '/js/modules/checklist.js',
+  '/js/modules/cronograma.js',
+  '/js/modules/dashboards.js',
+  '/js/modules/empreendimentos.js',
+  '/js/modules/managerDashboard.js',
+  '/js/modules/orcamentos.js',
+  '/js/modules/pendencias.js',
+  '/js/modules/pessoas.js',
+  '/js/modules/projetos.js',
+  '/js/modules/reformas.js',
+  '/js/modules/relatorios.js',
+  '/js/modules/usuarios.js',
+  '/js/modules/vistorias.js',
   '/assets/logo/logo.png',
   '/assets/icons/icon-192.png',
   '/assets/icons/icon-512.png'
-  // Adicione outros arquivos estáticos importantes aqui
 ];
 
 self.addEventListener('install', event => {
