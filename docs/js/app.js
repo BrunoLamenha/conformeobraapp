@@ -75,6 +75,7 @@ function activateView(viewId) {
       orcamentos: 'Orçamentos',
       cadastro: 'Cadastro',
       search: 'Pesquisa',
+      calendario: 'Calendário', // Adicionar aqui para o título
       cronograma: 'Cronograma',
       modules: 'Módulos',
       managerDashboard: 'Dashboard Gerencial',
